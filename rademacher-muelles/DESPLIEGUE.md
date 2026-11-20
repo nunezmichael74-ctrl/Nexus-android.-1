@@ -17,29 +17,22 @@ Para cumplir el RGPD, elija un proveedor con centro de datos en la UE.
 2. En el panel DNS del dominio cree un registro **A** que apunte a la IP pública del VPS.
 3. Compruebe con `ping muelles.su-empresa.es` que responde la IP correcta (puede tardar unos minutos).
 
-## Paso 3 · Instalar en el servidor (Docker + HTTPS automático)
+## Paso 3 · Instalar en el servidor (un solo comando)
 
-En el VPS (Ubuntu/Debian):
+Conéctese al servidor como `root` (desde Windows: PowerShell → `ssh root@IP_DEL_SERVIDOR`) y ejecute:
 
 ```bash
-# 3.1 Instalar Docker
-curl -fsSL https://get.docker.com | sh
-
-# 3.2 Descargar la aplicación
-git clone https://github.com/nunezmichael74-ctrl/Nexus-android.-1.git
-cd Nexus-android.-1/rademacher-muelles/deploy
-
-# 3.3 Configurar
-cp .env.example .env
-nano .env        # DOMAIN=muelles.su-empresa.es  y  OFFICE_PIN=un PIN de 6+ cifras
-
-# 3.4 Arrancar
-docker compose up -d --build
+curl -fsSL https://raw.githubusercontent.com/nunezmichael74-ctrl/Nexus-android.-1/main/rademacher-muelles/deploy/instalar.sh | bash
 ```
 
-Caddy obtiene el certificado HTTPS de Let's Encrypt automáticamente (puertos 80 y 443 abiertos en el cortafuegos del VPS).
+El instalador (`deploy/instalar.sh`) instala Docker, descarga la aplicación en `/opt/rademacher`, crea un **PIN de oficina aleatorio** y la arranca con **HTTPS automático**. Al terminar muestra la dirección y el PIN.
 
-Comprobación: abra `https://muelles.su-empresa.es/api/health` → debe mostrar `{"ok":true,...}`.
+- Sin dominio propio usa una dirección gratuita basada en la IP (`1-2-3-4.sslip.io`), válida para el piloto.
+- Con dominio propio: `curl -fsSL …/instalar.sh | DOMAIN=muelles.su-empresa.es bash` (antes, registro DNS tipo A hacia la IP).
+- Para **actualizar** la aplicación basta con volver a ejecutar el mismo comando: conserva PIN y datos.
+- El repositorio debe ser **público** para que el servidor pueda descargarlo.
+
+Comprobación: abra `https://SU-DIRECCION/api/health` → debe mostrar `{"ok":true,...}`.
 
 > Alternativa sin Docker: `deploy/rademacher-muelles.service` (systemd) con Node.js 18+ y un proxy HTTPS delante.
 
@@ -71,10 +64,10 @@ Si no se configura la variable del paso 1, la app pide la dirección del servido
 
 | Tarea | Cómo |
 |---|---|
-| Actualizar versión | `git pull && docker compose up -d --build` |
-| Copia de seguridad | `docker compose cp app:/data/state.json backup-$(date +%F).json` (diaria, p. ej. con cron) |
-| Cambiar PIN | Editar `.env` y `docker compose up -d` |
-| Ver registros | `docker compose logs -f app` |
+| Actualizar versión | Volver a ejecutar el comando del paso 3 |
+| Copia de seguridad | En `/opt/rademacher/rademacher-muelles/deploy`: `docker compose cp app:/data/state.json backup-$(date +%F).json` (diaria, p. ej. con cron) |
+| Cambiar PIN | Editar `/opt/rademacher/rademacher-muelles/deploy/.env` y `docker compose up -d` en esa carpeta |
+| Ver registros | En esa misma carpeta: `docker compose logs -f app` |
 
 ## Protección de datos
 
