@@ -9,6 +9,7 @@ services:
       RETENTION_DAYS: ${RETENTION_DAYS:-7}
       DOCKS: ${DOCKS:-14}
       TZ: Europe/Madrid
+      PUBLIC_URL: https://${DOMAIN}   # identificación del servidor ante Apple/Google para los avisos push
     volumes:
       - muelles-data:/data
 

@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0b3d91">
+<link rel="manifest" id="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Muelles">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Rademacher · Driver</title>
 <link rel="stylesheet" href="/app.css">
 <script src="/i18n.js"></script>
@@ -45,7 +51,9 @@
       <button id="btnFinished" class="ok hidden" data-t="btnFinished"></button>
     </div>
     <p class="muted" style="text-align:center;margin-top:16px" data-t="keepOpen"></p>
-    <button id="btnSound" class="secondary" style="width:100%">🔔 <span data-t="soundOn"></span></button>
+    <p id="iosHint" class="notice hidden" data-t="iosHint"></p>
+    <button id="btnSound" class="secondary" style="width:100%">🔔 <span data-t="notifOn"></span></button>
+    <p id="notifOk" class="muted hidden" style="text-align:center;font-weight:700" data-t="notifActive"></p>
   </section>
 </main>
 
@@ -103,11 +111,39 @@ function alertUser(text) {
     try { new Notification('Rademacher', { body: text }); } catch {}
   }
 }
+// ---- avisos push (iPhone con iOS 16.4+ instalada en pantalla de inicio, Android con navegador)
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const pushCapable = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && !window.RademacherApp;
+let swReg = null, alertsDone = false;
+if ('serviceWorker' in navigator && !window.RademacherApp) {
+  navigator.serviceWorker.register('/sw.js').then((r) => { swReg = r; }).catch(() => {});
+}
+function b64ToBytes(b64) {
+  const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+async function enablePush() {
+  if (!pushCapable || !code) return false;
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return false;
+  const reg = swReg || await navigator.serviceWorker.ready;
+  const { publicKey } = await (await fetch('/api/push/key')).json();
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+  const r = await fetch(`/api/driver/${code}/push`, { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+  return r.ok;
+}
 $('btnSound').onclick = async () => {
   beep(1);
-  if ('Notification' in window && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch {} }
   try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch {}
-  $('btnSound').classList.add('hidden');
+  let ok = false;
+  try { ok = await enablePush(); } catch {}
+  if (!ok && !pushCapable && 'Notification' in window && Notification.permission === 'default') {
+    try { await Notification.requestPermission(); } catch {}
+  }
+  if (ok || !pushCapable) { alertsDone = true; $('btnSound').classList.add('hidden'); $('notifOk').classList.remove('hidden'); }
 };
 
 // ---- render
@@ -129,6 +165,11 @@ function render(v) {
   $('btnArrived').classList.toggle('hidden', v.status !== 'turno');
   $('btnFinished').classList.toggle('hidden', !(v.status === 'turno' || v.status === 'en_muelle'));
   document.title = `${t('dock')} ${v.dock} · ${v.plate}`;
+  const active = v.status === 'espera' || v.status === 'turno' || v.status === 'en_muelle';
+  $('iosHint').classList.toggle('hidden', !(isIOS && !standalone && active));
+  const on = alertsDone || !!v.pushOn;
+  $('btnSound').classList.toggle('hidden', on || !active);
+  $('notifOk').classList.toggle('hidden', !(on && active));
 
   if (prev && prev.status !== 'turno' && v.status === 'turno') alertUser(t('st_turno', { d: v.dock }));
   if (prev && prev.dock !== v.dock) alertUser(t('m_dock'));
@@ -160,6 +201,7 @@ $('loginForm').onsubmit = (e) => {
   e.preventDefault();
   code = $('codeInput').value.trim().toUpperCase();
   history.replaceState(null, '', '/c/' + code);
+  $('manifest').href = '/manifest.webmanifest?c=' + encodeURIComponent(code);
   load().then(() => { if (last) fetch(`/api/driver/${code}/lang`, { method: 'POST', body: JSON.stringify({ lang }) }).catch(() => {}); });
 };
 
@@ -183,6 +225,8 @@ function connect() {
 setInterval(() => { if (code && last) load(); }, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && code) load(); });
 
+// El icono de pantalla de inicio (iPhone) abrirá directamente el turno de este código
+if (code) $('manifest').href = '/manifest.webmanifest?c=' + encodeURIComponent(code);
 applyLang();
 if (code) fetch(`/api/driver/${code}/lang`, { method: 'POST', body: JSON.stringify({ lang }) }).catch(() => {});
 load();
