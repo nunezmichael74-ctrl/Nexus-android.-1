@@ -29,9 +29,10 @@ android {
         if (keystorePath) {
             release {
                 storeFile file(keystorePath)
-                storePassword System.getenv("RADEMACHER_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("RADEMACHER_KEY_ALIAS")
-                keyPassword System.getenv("RADEMACHER_KEY_PASSWORD")
+                // trim(): ignora espacios o saltos de línea pegados por error en los secretos
+                storePassword System.getenv("RADEMACHER_KEYSTORE_PASSWORD")?.trim()
+                keyAlias System.getenv("RADEMACHER_KEY_ALIAS")?.trim()
+                keyPassword System.getenv("RADEMACHER_KEY_PASSWORD")?.trim()
             }
         }
     }

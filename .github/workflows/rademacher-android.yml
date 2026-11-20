@@ -37,7 +37,8 @@ jobs:
           KEYSTORE_B64: ${{ secrets.RADEMACHER_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/rademacher.jks"
+            # tr: elimina espacios y saltos de línea que se cuelan al pegar el secreto
+            printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t' | base64 -d > "$RUNNER_TEMP/rademacher.jks"
             echo "path=$RUNNER_TEMP/rademacher.jks" >> "$GITHUB_OUTPUT"
             echo "task=assembleRelease" >> "$GITHUB_OUTPUT"
             echo "apk=app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_OUTPUT"
