@@ -1,0 +1,31 @@
+# Despliegue con HTTPS automático (certificado Let's Encrypt gestionado por Caddy).
+# Uso:  cd rademacher-muelles/deploy && cp .env.example .env && (editar .env) && docker compose up -d
+services:
+  app:
+    build: ..
+    restart: unless-stopped
+    environment:
+      OFFICE_PIN: ${OFFICE_PIN:?Defina OFFICE_PIN en .env}
+      RETENTION_DAYS: ${RETENTION_DAYS:-7}
+      DOCKS: ${DOCKS:-14}
+      TZ: Europe/Madrid
+    volumes:
+      - muelles-data:/data
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Defina DOMAIN en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+
+volumes:
+  muelles-data:
+  caddy-data:

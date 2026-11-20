@@ -97,6 +97,8 @@ function beep(times = 3) {
 }
 function alertUser(text) {
   beep();
+  // Dentro de la app Android: vibración + notificación nativa (también en segundo plano)
+  if (window.RademacherApp) { try { RademacherApp.alert(text); } catch {} return; }
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try { new Notification('Rademacher', { body: text }); } catch {}
   }

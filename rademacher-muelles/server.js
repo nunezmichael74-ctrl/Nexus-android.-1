@@ -224,6 +224,7 @@ async function api(req, res, pathname) {
     return;
   }
 
+  if (m === 'GET' && pathname === '/api/health') return send(res, 200, { ok: true, version });
   if (m === 'GET' && pathname === '/api/public') return send(res, 200, publicView());
 
   // ---- Chófer
@@ -251,7 +252,8 @@ async function api(req, res, pathname) {
 
   // ---- Oficina: login
   if (m === 'POST' && pathname === '/api/office/login') {
-    const ip = req.socket.remoteAddress || '?';
+    const fwd = process.env.TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '';
+    const ip = fwd || req.socket.remoteAddress || '?';
     const f = failed.get(ip);
     if (f && f.until > now()) return send(res, 429, { error: 'too_many_attempts' });
     const body = await readBody(req).catch(() => ({}));

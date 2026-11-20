@@ -1,0 +1,50 @@
+plugins {
+    id "com.android.application"
+}
+
+// Firma de release opcional (secretos de GitHub): las actualizaciones se instalan encima sin desinstalar.
+def keystorePath = System.getenv("RADEMACHER_KEYSTORE_PATH")
+// URL del servidor de muelles. Se puede fijar al compilar (variable SERVER_URL) o
+// introducir en el propio móvil la primera vez que se abre la app.
+def serverUrl = System.getenv("SERVER_URL") ?: ""
+
+android {
+    namespace "com.rademacher.muelles"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.rademacher.muelles"
+        minSdk 26
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
+        versionName System.getenv("VERSION_NAME") ?: "1.0.0"
+        buildConfigField "String", "SERVER_URL", "\"${serverUrl}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        if (keystorePath) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv("RADEMACHER_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("RADEMACHER_KEY_ALIAS")
+                keyPassword System.getenv("RADEMACHER_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keystorePath) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
