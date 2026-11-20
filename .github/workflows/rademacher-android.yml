@@ -60,6 +60,9 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon ${{ steps.sign.outputs.task }}
           cp "${{ steps.sign.outputs.apk }}" "RademacherMuelles-1.0.${{ github.run_number }}.apk"
+          # Copia con nombre fijo: enlace estable para el QR del cartel
+          # https://github.com/<repo>/releases/latest/download/RademacherMuelles.apk
+          cp "${{ steps.sign.outputs.apk }}" "RademacherMuelles.apk"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -75,4 +78,6 @@ jobs:
           body: |
             App Android del chófer. Descargue **RademacherMuelles-1.0.${{ github.run_number }}.apk** desde el móvil y ábralo para instalar.
             Android pedirá permiso para instalar apps de origen desconocido (solo la primera vez).
-          files: rademacher-android/RademacherMuelles-*.apk
+          files: |
+            rademacher-android/RademacherMuelles-*.apk
+            rademacher-android/RademacherMuelles.apk
