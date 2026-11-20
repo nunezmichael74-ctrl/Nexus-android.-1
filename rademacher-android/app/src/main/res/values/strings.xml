@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rademacher Muelles</string>
+    <string name="server_title">Servidor / Server</string>
+    <string name="server_hint">https://muelles.ejemplo.es</string>
+    <string name="server_msg">Dirección facilitada por la oficina.\nAddress provided by the office.</string>
+    <string name="save">OK</string>
+    <string name="retry">Reintentar / Retry</string>
+    <string name="change_server">Cambiar servidor / Change server</string>
+    <string name="error_title">Sin conexión / No connection</string>
+    <string name="error_msg">No se puede conectar con el servidor de muelles.\nCannot reach the dock server.</string>
+    <string name="channel_name">Turnos de muelle / Dock turns</string>
+</resources>

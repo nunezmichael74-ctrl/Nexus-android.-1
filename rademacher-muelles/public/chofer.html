@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b3d91">
+<title>Rademacher · Driver</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/i18n.js"></script>
+</head>
+<body>
+<div id="offline" class="offline hidden"></div>
+<header class="top">
+  <h1>Rademacher · Girona</h1>
+  <select id="lang" class="lang" aria-label="Language"></select>
+</header>
+<main class="driver">
+  <!-- Pantalla de acceso con código -->
+  <section id="login" class="card hidden">
+    <h2 data-t="enterCode" style="margin-top:0"></h2>
+    <p class="muted" data-t="codeHint"></p>
+    <form id="loginForm">
+      <input id="codeInput" class="code-input" maxlength="8" autocomplete="off" autocapitalize="characters" required>
+      <p id="loginErr" class="notice hidden" data-t="invalidCode"></p>
+      <button style="width:100%;margin-top:12px;padding:16px" data-t="go"></button>
+    </form>
+  </section>
+
+  <!-- Estado del chófer -->
+  <section id="view" class="hidden">
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <div><span class="muted" data-t="plate"></span><br><b id="plate" style="font-size:1.3rem"></b></div>
+        <div style="text-align:right"><span id="op" class="pill" style="background:#374151;font-size:.95rem;padding:4px 12px"></span></div>
+      </div>
+    </div>
+    <div id="statusBox" class="status-box">
+      <div data-t="yourDock"></div>
+      <div class="big" id="dockNum"></div>
+      <div class="msg" id="statusMsg"></div>
+      <div id="ahead" style="margin-top:8px"></div>
+    </div>
+    <p id="blocked" class="notice hidden" data-t="blocked"></p>
+    <div class="actions">
+      <button id="btnArrived" class="hidden" data-t="btnArrived"></button>
+      <button id="btnFinished" class="ok hidden" data-t="btnFinished"></button>
+    </div>
+    <p class="muted" style="text-align:center;margin-top:16px" data-t="keepOpen"></p>
+    <button id="btnSound" class="secondary" style="width:100%">🔔 <span data-t="soundOn"></span></button>
+  </section>
+</main>
+
+<dialog id="confirmDlg">
+  <p id="confirmText" style="font-size:1.1rem;font-weight:600"></p>
+  <div class="row"><button class="secondary" value="no" id="cNo" data-t="no"></button><button class="ok" id="cYes" data-t="yes"></button></div>
+</dialog>
+<dialog id="msgDlg">
+  <h3 data-t="msgTitle" style="margin-top:0"></h3>
+  <p id="msgText" style="font-size:1.2rem;font-weight:700"></p>
+  <button id="msgOk" style="width:100%" data-t="ok"></button>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+let lang = pickLang(store.get('lang'));
+let code = (location.pathname.match(/^\/c\/([A-Za-z0-9]+)/) || [])[1] || store.get('code') || '';
+code = code.toUpperCase();
+let last = null, audio = null;
+
+const t = (k, vars = {}) => String((I18N[lang] && I18N[lang][k]) || I18N.en[k] || k)
+  .replace(/\{(\w)\}/g, (_, v) => vars[v] ?? '');
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
+  if (last) render(last);
+}
+for (const [k, v] of Object.entries(I18N)) $('lang').add(new Option(v._name, k, false, k === lang));
+$('lang').onchange = (e) => {
+  lang = e.target.value; store.set('lang', lang); applyLang();
+  if (code) fetch(`/api/driver/${code}/lang`, { method: 'POST', body: JSON.stringify({ lang }) }).catch(() => {});
+};
+
+// ---- avisos (sonido + vibración + notificación)
+function beep(times = 3) {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < times; i++) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(audio.destination);
+      const s = audio.currentTime + i * 0.45; g.gain.setValueAtTime(0.3, s); g.gain.setValueAtTime(0, s + 0.3);
+      o.start(s); o.stop(s + 0.32);
+    }
+  } catch {}
+  if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 400]);
+}
+function alertUser(text) {
+  beep();
+  // Dentro de la app Android: vibración + notificación nativa (también en segundo plano)
+  if (window.RademacherApp) { try { RademacherApp.alert(text); } catch {} return; }
+  if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+    try { new Notification('Rademacher', { body: text }); } catch {}
+  }
+}
+$('btnSound').onclick = async () => {
+  beep(1);
+  if ('Notification' in window && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch {} }
+  try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch {}
+  $('btnSound').classList.add('hidden');
+};
+
+// ---- render
+function render(v) {
+  const prev = last; last = v;
+  $('login').classList.add('hidden'); $('view').classList.remove('hidden');
+  $('plate').textContent = v.plate;
+  $('op').textContent = v.op === 'carga' ? t('load') : t('unload');
+  $('dockNum').textContent = v.dock;
+  $('statusBox').className = 'status-box ' + v.status;
+  $('statusMsg').textContent = t('st_' + v.status, { d: v.dock });
+  let extra = '';
+  if (v.status === 'espera') {
+    extra = t('ahead', { n: v.ahead });
+    if (v.occupantPlate) extra += ' · ' + t('current', { p: v.occupantPlate });
+  }
+  $('ahead').textContent = extra;
+  $('blocked').classList.toggle('hidden', !(v.dockBlocked && v.status === 'espera'));
+  $('btnArrived').classList.toggle('hidden', v.status !== 'turno');
+  $('btnFinished').classList.toggle('hidden', !(v.status === 'turno' || v.status === 'en_muelle'));
+  document.title = `${t('dock')} ${v.dock} · ${v.plate}`;
+
+  if (prev && prev.status !== 'turno' && v.status === 'turno') alertUser(t('st_turno', { d: v.dock }));
+  if (prev && prev.dock !== v.dock) alertUser(t('m_dock'));
+  if (v.message && !v.message.read) {
+    $('msgText').textContent = t(v.message.key);
+    if (!$('msgDlg').open) { $('msgDlg').showModal(); if (prev) alertUser(t(v.message.key)); }
+  }
+}
+
+async function load() {
+  if (!code) return showLogin();
+  try {
+    const r = await fetch(`/api/driver/${code}`, { cache: 'no-store' });
+    setOffline(false);
+    if (r.status === 404) { store.set('code', ''); return showLogin(true); }
+    const v = await r.json();
+    store.set('code', code);
+    render(v);
+  } catch { setOffline(true); }
+}
+function showLogin(err) {
+  $('view').classList.add('hidden'); $('login').classList.remove('hidden');
+  $('loginErr').classList.toggle('hidden', !err);
+  $('codeInput').value = code; $('codeInput').focus();
+}
+function setOffline(off) { $('offline').textContent = t('offline'); $('offline').classList.toggle('hidden', !off); }
+
+$('loginForm').onsubmit = (e) => {
+  e.preventDefault();
+  code = $('codeInput').value.trim().toUpperCase();
+  history.replaceState(null, '', '/c/' + code);
+  load().then(() => { if (last) fetch(`/api/driver/${code}/lang`, { method: 'POST', body: JSON.stringify({ lang }) }).catch(() => {}); });
+};
+
+async function act(action) {
+  const r = await fetch(`/api/driver/${code}/${action}`, { method: 'POST' });
+  const j = await r.json(); render(j.view || j);
+}
+$('btnArrived').onclick = () => act('arrive');
+$('btnFinished').onclick = () => { $('confirmText').textContent = t('confirmFinish'); $('confirmDlg').showModal(); };
+$('cNo').onclick = () => $('confirmDlg').close();
+$('cYes').onclick = () => { $('confirmDlg').close(); act('finish'); };
+$('msgOk').onclick = async () => { $('msgDlg').close(); const r = await fetch(`/api/driver/${code}/ack`, { method: 'POST' }); render(await r.json()); };
+
+// ---- tiempo real (SSE) + sondeo de respaldo
+function connect() {
+  const es = new EventSource('/api/stream');
+  es.addEventListener('update', () => { if (code && last) load(); });
+  es.onerror = () => setOffline(true);
+  es.onopen = () => setOffline(false);
+}
+setInterval(() => { if (code && last) load(); }, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && code) load(); });
+
+applyLang();
+if (code) fetch(`/api/driver/${code}/lang`, { method: 'POST', body: JSON.stringify({ lang }) }).catch(() => {});
+load();
+connect();
+</script>
+</body>
+</html>

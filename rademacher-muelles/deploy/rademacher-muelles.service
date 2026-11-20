@@ -1,0 +1,18 @@
+# Alternativa sin Docker (servidor Linux con Node.js 18+ y un proxy HTTPS delante).
+# Copiar a /etc/systemd/system/ y ejecutar: systemctl enable --now rademacher-muelles
+[Unit]
+Description=Rademacher - gestion de muelles
+After=network.target
+
+[Service]
+User=muelles
+WorkingDirectory=/opt/rademacher-muelles
+Environment=PORT=3000
+Environment=TRUST_PROXY=1
+Environment=TZ=Europe/Madrid
+EnvironmentFile=/etc/rademacher-muelles.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

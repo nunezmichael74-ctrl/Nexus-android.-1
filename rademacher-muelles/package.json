@@ -1,0 +1,12 @@
+{
+  "name": "rademacher-muelles",
+  "version": "1.0.0",
+  "description": "Gestión de muelles y turnos de chóferes - Rademacher SL (Girona)",
+  "main": "server.js",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  }
+}

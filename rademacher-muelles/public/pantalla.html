@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rademacher · Pantalla de muelles</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/i18n.js"></script>
+</head>
+<body class="screen">
+<header class="top"><h1>Rademacher SL · Girona — <span id="title"></span></h1><b id="clock" style="font-size:1.3rem"></b></header>
+<div class="grid" id="grid"></div>
+<p style="text-align:center;color:#9ca3af" id="legend"></p>
+<script>
+// Pantalla para la sala de chóferes: rota el idioma de los textos cada 8 s.
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ROT = ['es', 'en', 'de', 'fr', 'pl', 'ro', 'ru', 'pt', 'it', 'ca', 'bg', 'uk', 'cs', 'lt', 'nl', 'tr'];
+let li = 0, data = null;
+const t = (k) => I18N[ROT[li]][k];
+function render() {
+  if (!data) return;
+  document.getElementById('title').textContent = t('dock');
+  document.getElementById('legend').textContent = `🟠 ➡ ${t('st_turno').replace('{d}', '#')}   ·   🔵 ${t('st_en_muelle')}   ·   ⏳ ${t('st_espera')}`;
+  document.getElementById('grid').innerHTML = data.docks.map((d) => {
+    const c = d.current;
+    const cls = d.blocked ? 'blocked' : c ? (c.status === 'turno' ? 'calling' : 'busy') : '';
+    return `<div class="tile ${cls}">
+      <div class="num">${d.id}</div>
+      ${d.blocked ? '<div class="plate">⛔</div>' : c ? `<div class="plate">${c.status === 'turno' ? '➡ ' : ''}${esc(c.plate)}</div>` : '<div class="plate">✅</div>'}
+      ${d.waiting.length ? `<div class="q">⏳ ${d.waiting.map(esc).join(' · ')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+async function load() { try { data = await (await fetch('/api/public', { cache: 'no-store' })).json(); render(); } catch {} }
+setInterval(() => { li = (li + 1) % ROT.length; render(); }, 8000);
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }, 1000);
+new EventSource('/api/stream').addEventListener('update', load);
+setInterval(load, 30000);
+load();
+</script>
+</body>
+</html>

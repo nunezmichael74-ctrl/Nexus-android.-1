@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rademacher · Oficina de muelles</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/i18n.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<header class="top">
+  <h1>Rademacher SL · Oficina de muelles</h1>
+  <div><a href="/pantalla" target="_blank" style="color:#fff">📺 Pantalla</a> · <a href="#" id="logout" style="color:#fff">Salir</a></div>
+</header>
+
+<main>
+  <section id="login" class="card hidden" style="max-width:360px;margin:40px auto">
+    <h2 style="margin-top:0">Acceso oficina</h2>
+    <form id="loginForm">
+      <label for="pin">PIN</label>
+      <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required>
+      <p id="loginErr" class="notice hidden">PIN incorrecto</p>
+      <button style="width:100%;margin-top:12px">Entrar</button>
+    </form>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="kpis" id="kpis"></div>
+    <div class="office-grid">
+      <!-- Registro de llegada -->
+      <form id="newForm" class="card">
+        <h2 style="margin:0 0 4px">Registrar chófer</h2>
+        <p class="muted" style="margin:0">Tras recibir y revisar la documentación (CMR, albarán, e-DA si procede).</p>
+        <div class="row">
+          <div><label>Matrícula tractora *</label><input name="plate" required maxlength="15" style="text-transform:uppercase"></div>
+          <div><label>Matrícula remolque</label><input name="trailer" maxlength="15" style="text-transform:uppercase"></div>
+        </div>
+        <div class="row">
+          <div><label>Chófer</label><input name="driver" maxlength="60"></div>
+          <div><label>Transportista</label><input name="carrier" maxlength="60"></div>
+        </div>
+        <div class="row">
+          <div><label>Teléfono</label><input name="phone" maxlength="20" inputmode="tel"></div>
+          <div><label>Idioma chófer</label><select name="lang" id="langSel"></select></div>
+        </div>
+        <div class="row">
+          <div><label>Operación</label>
+            <select name="op"><option value="descarga">Descarga</option><option value="carga">Carga</option></select></div>
+          <div><label>Muelle *</label><select name="dock" id="dockSel" required></select></div>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;color:var(--ink)">
+          <input type="checkbox" name="alcohol" style="width:auto"> Bebidas alcohólicas (IIEE · e-DA verificado)
+        </label>
+        <label>Observaciones</label><textarea name="notes" rows="2" maxlength="200"></textarea>
+        <button style="width:100%;margin-top:12px">Asignar muelle y generar ticket</button>
+      </form>
+
+      <!-- Muelles -->
+      <div>
+        <div class="docks" id="docks"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;overflow-x:auto">
+      <h2 style="margin-top:0">Historial reciente</h2>
+      <table><thead><tr><th>Matrícula</th><th>Transportista</th><th>Op.</th><th>Muelle</th><th>Llegada</th><th>Llamado</th><th>Fin</th><th>Estado</th><th>Cerrado por</th></tr></thead>
+        <tbody id="history"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<dialog id="ticketDlg">
+  <div class="ticket">
+    <div class="muted">Rademacher SL · Girona</div>
+    <div style="font-size:1.4rem;font-weight:800;margin-top:6px" id="tkPlate"></div>
+    <div>Muelle / Dock / Rampe / Rampa: <b id="tkDock" style="font-size:1.6rem"></b></div>
+    <div id="qr"></div>
+    <div class="code" id="tkCode"></div>
+    <div class="muted" id="tkUrl" style="word-break:break-all"></div>
+    <p style="font-size:.85rem">Escanee el QR o introduzca el código · Scan the QR or enter the code</p>
+  </div>
+  <div class="row noprint"><button class="secondary" id="tkClose">Cerrar</button><button id="tkPrint">Imprimir</button></div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ST = { espera: 'En espera', turno: 'Llamado', en_muelle: 'En muelle', finalizado: 'Finalizado', cancelado: 'Cancelado' };
+const MSG = { m_office: 'Acuda a oficina', m_docs: 'Documentos listos', m_wait: 'Retraso, espere', m_doors: 'Abra puertas', m_safety: 'Motor/freno/calzos' };
+const hhmm = (ms) => ms ? new Date(ms).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '–';
+const mins = (ms) => Math.max(0, Math.round((Date.now() - ms) / 60000)) + ' min';
+let token = sessionStorage.getItem('tk') || '';
+let data = null;
+
+for (const [k, v] of Object.entries(I18N)) $('langSel').add(new Option(v._name, k, false, k === 'es'));
+
+async function call(url, body) {
+  const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) { showLogin(); throw new Error('401'); }
+  const j = await r.json();
+  if (!r.ok) { alert('Error: ' + (j.error || r.status)); throw new Error(j.error); }
+  return j;
+}
+
+function showLogin() { token = ''; sessionStorage.removeItem('tk'); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('pin').focus(); }
+$('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await fetch('/api/office/login', { method: 'POST', body: JSON.stringify({ pin: $('pin').value }) });
+  if (!r.ok) { $('loginErr').textContent = r.status === 429 ? 'Demasiados intentos. Espere 1 minuto.' : 'PIN incorrecto'; $('loginErr').classList.remove('hidden'); return; }
+  token = (await r.json()).token; sessionStorage.setItem('tk', token);
+  $('login').classList.add('hidden'); $('app').classList.remove('hidden'); load();
+};
+$('logout').onclick = (e) => { e.preventDefault(); showLogin(); };
+
+async function load() { if (!token) return showLogin(); data = await call('/api/office/state'); render(); }
+
+function render() {
+  const k = data.kpis;
+  $('kpis').innerHTML = [
+    ['En espera ahora', k.waitingNow], ['Finalizados hoy', k.finishedToday], ['Cargas hoy', k.loadsToday],
+    ['Descargas hoy', k.unloadsToday], ['Espera media (min)', k.avgWaitMin ?? '–'], ['Tiempo medio en muelle (min)', k.avgDockMin ?? '–'],
+  ].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+
+  // Selector de muelle: muestra carga de cada muelle y sugiere el más libre
+  const sel = $('dockSel'), prev = sel.value;
+  const load = data.docks.filter((d) => !d.blocked).map((d) => [d.id, d.queue.length]);
+  const best = load.sort((a, b) => a[1] - b[1] || a[0] - b[0])[0];
+  sel.innerHTML = data.docks.map((d) => `<option value="${d.id}" ${d.blocked ? 'disabled' : ''}>Muelle ${d.id} — ${d.blocked ? 'cerrado' : d.queue.length ? d.queue.length + ' en cola' : 'libre'}</option>`).join('');
+  sel.value = prev && !data.docks[prev - 1].blocked ? prev : (best ? best[0] : 1);
+
+  const dockOpts = (cur) => data.docks.map((d) => `<option value="${d.id}" ${d.id === cur ? 'selected' : ''}>→ M${d.id}</option>`).join('');
+  $('docks').innerHTML = data.docks.map((d) => {
+    const head = d.queue.find((v) => v.status !== 'espera');
+    const cls = d.blocked ? 'blocked' : head ? (head.status === 'en_muelle' ? 'busy' : 'calling') : '';
+    const visits = d.queue.map((v, i) => `
+      <div class="visit">
+        <div style="display:flex;justify-content:space-between;gap:6px">
+          <span class="plate">${esc(v.plate)}${v.trailer ? ' / ' + esc(v.trailer) : ''}</span>
+          <span class="pill ${v.status}">${ST[v.status]}${v.status === 'espera' ? ' #' + i : ''}</span>
+        </div>
+        <div class="muted">${v.op === 'carga' ? '⬆ Carga' : '⬇ Descarga'} · ${esc(v.carrier || '')} ${v.driver ? '· ' + esc(v.driver) : ''}
+          ${v.alcohol ? ' · 🍷 IIEE' : ''} · 🗣 ${esc((v.lang || '?').toUpperCase())} · código <b>${v.code}</b></div>
+        <div class="muted">Llegada ${hhmm(v.createdAt)} (${mins(v.createdAt)})${v.calledAt ? ' · llamado ' + hhmm(v.calledAt) : ''}${v.dockedAt ? ' · en muelle ' + hhmm(v.dockedAt) : ''}</div>
+        ${v.notes ? `<div class="muted">📝 ${esc(v.notes)}</div>` : ''}
+        ${v.message && !v.message.read ? `<div class="muted">✉ ${MSG[v.message.key] || 'Cambio de muelle'} (sin leer)</div>` : ''}
+        <div class="tools">
+          ${v.status === 'turno' ? `<button class="small" data-a="docked" data-id="${v.id}">En muelle</button>` : ''}
+          <button class="small ok" data-a="finish" data-id="${v.id}">Finalizar</button>
+          ${v.status === 'espera' && i > 1 ? `<button class="small secondary" data-a="up" data-id="${v.id}">▲ Subir</button>` : ''}
+          <select data-a="move" data-id="${v.id}">${dockOpts(v.dock)}</select>
+          <select data-a="message" data-id="${v.id}"><option value="">✉ Mensaje…</option>${Object.entries(MSG).map(([k2, l]) => `<option value="${k2}">${l}</option>`).join('')}</select>
+          <button class="small secondary" data-a="ticket" data-id="${v.id}">🎫</button>
+          <button class="small danger" data-a="cancel" data-id="${v.id}">✕</button>
+        </div>
+      </div>`).join('');
+    return `<div class="dock ${cls}">
+      <h3>Muelle ${d.id}
+        <button class="small ${d.blocked ? 'ok' : 'secondary'}" data-dock="${d.id}" data-block="${!d.blocked}">${d.blocked ? 'Abrir' : 'Cerrar'}</button></h3>
+      <div class="muted">${d.blocked ? '⛔ Cerrado' : head ? (head.status === 'en_muelle' ? 'Ocupado' : 'Llamando a ' + esc(head.plate)) : '✅ Libre'} · ${d.queue.filter((v) => v.status === 'espera').length} en cola</div>
+      ${visits}
+    </div>`;
+  }).join('');
+
+  $('history').innerHTML = data.history.map((v) => `<tr><td><b>${esc(v.plate)}</b></td><td>${esc(v.carrier)}</td><td>${v.op}</td><td>${v.dock}</td>
+    <td>${hhmm(v.createdAt)}</td><td>${hhmm(v.calledAt)}</td><td>${hhmm(v.closedAt)}</td><td><span class="pill ${v.status}">${ST[v.status]}</span></td><td>${v.closedBy || ''}</td></tr>`).join('');
+}
+
+function findVisit(id) { for (const d of data.docks) { const v = d.queue.find((x) => x.id === id); if (v) return v; } }
+
+$('docks').addEventListener('click', async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.dock) { await call(`/api/office/docks/${b.dataset.dock}`, { blocked: b.dataset.block === 'true' }); return load(); }
+  const id = Number(b.dataset.id), a = b.dataset.a;
+  if (a === 'ticket') return showTicket(findVisit(id));
+  if (a === 'cancel' && !confirm('¿Cancelar esta visita?')) return;
+  if (a === 'finish' && !confirm('¿Marcar como finalizado y liberar el muelle?')) return;
+  await call(`/api/office/visits/${id}`, { action: a }); load();
+});
+$('docks').addEventListener('change', async (e) => {
+  const s = e.target; if (s.tagName !== 'SELECT' || !s.value) return;
+  const id = Number(s.dataset.id);
+  if (s.dataset.a === 'move') await call(`/api/office/visits/${id}`, { action: 'move', dock: Number(s.value) });
+  if (s.dataset.a === 'message') await call(`/api/office/visits/${id}`, { action: 'message', key: s.value });
+  load();
+});
+
+$('newForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const body = Object.fromEntries(f.entries());
+  body.alcohol = f.get('alcohol') === 'on'; body.dock = Number(body.dock);
+  const v = await call('/api/office/visits', body);
+  e.target.reset(); $('langSel').value = 'es';
+  await load(); showTicket(v);
+};
+
+function showTicket(v) {
+  const url = `${location.origin}/c/${v.code}`;
+  $('tkPlate').textContent = v.plate; $('tkDock').textContent = v.dock; $('tkCode').textContent = v.code; $('tkUrl').textContent = url;
+  $('qr').innerHTML = '';
+  if (window.QRCode) new QRCode($('qr'), { text: url, width: 180, height: 180 });
+  $('ticketDlg').showModal();
+}
+$('tkClose').onclick = () => $('ticketDlg').close();
+$('tkPrint').onclick = () => window.print();
+
+const es = new EventSource('/api/stream');
+es.addEventListener('update', () => { if (token) load().catch(() => {}); });
+setInterval(() => { if (token && data) render(); }, 60000); // refresca minutos de espera
+
+token ? ($('app').classList.remove('hidden'), load().catch(() => {})) : showLogin();
+</script>
+</body>
+</html>
