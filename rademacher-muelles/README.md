@@ -24,6 +24,7 @@ Estados: `En espera` → `Llamado (su turno)` → `En muelle` → `Finalizado` (
   - **iPhone (iOS 16.4+)**: Compartir → «Añadir a pantalla de inicio» y abrir desde el icono → botón «Activar avisos de turno». Recibe notificación de turno, cambio de muelle y mensajes de oficina aunque la app esté cerrada.
   - **Android en navegador** (Chrome): el mismo botón activa las notificaciones push sin instalar nada.
   - Las suscripciones push se borran al cerrar la visita y solo se envían a los servicios de Apple, Google, Mozilla y Microsoft.
+- **`/app`**: enlace único para el QR del cartel. En Android descarga el último APK; en iPhone muestra los pasos para instalar la app web (traducidos).
 - **`/pantalla`**: para una TV en la sala de chóferes; muestra los 14 muelles y rota el idioma cada 8 s.
 
 Idiomas: español, catalán, inglés, francés, alemán, italiano, portugués, neerlandés, polaco, rumano, búlgaro, ruso, ucraniano, checo, lituano y turco (`public/i18n.js`). Son traducciones fijas, no traducción automática en línea: funcionan sin internet externo y no envían datos a terceros. **Conviene que un hablante nativo revise cada idioma** antes de usarlo en producción.

@@ -120,3 +120,12 @@ test('suscripción caducada (410) se elimina', async () => {
   await new Promise((r) => setTimeout(r, 200));
   assert.equal((await j(`/api/driver/${b.code}`)).body.pushOn, false);
 });
+
+test('enlace único del cartel /app: Android descarga el APK, iPhone ve la página de instalación', async () => {
+  const android = await fetch(base + '/app', { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/130 Mobile' } });
+  assert.equal(android.status, 302);
+  assert.match(android.headers.get('location'), /releases\/latest\/download\/RademacherMuelles\.apk$/);
+  const iphone = await fetch(base + '/app', { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Safari/604.1' } });
+  assert.equal(iphone.status, 200);
+  assert.match(await iphone.text(), /id="ios"/);
+});
