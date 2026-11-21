@@ -16,6 +16,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const vm = require('vm');
+const webpush = require('web-push');
 
 const PORT = Number(process.env.PORT || 3000);
 const DOCKS = Number(process.env.DOCKS || 14);
@@ -27,6 +29,62 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const ACTIVE = ['espera', 'turno', 'en_muelle'];
 const MESSAGES = ['m_office', 'm_docs', 'm_wait', 'm_doors', 'm_safety'];
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+// ---------------------------------------------------------------- notificaciones push (iPhone / Android)
+// Claves VAPID generadas en el primer arranque y guardadas junto a los datos.
+const VAPID_FILE = path.join(path.dirname(DATA_FILE), 'vapid.json');
+let vapid;
+try { vapid = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8')); } catch {
+  vapid = webpush.generateVAPIDKeys();
+  fs.mkdirSync(path.dirname(VAPID_FILE), { recursive: true });
+  fs.writeFileSync(VAPID_FILE, JSON.stringify(vapid), { mode: 0o600 });
+}
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || process.env.PUBLIC_URL || 'mailto:muelles@rademacher.invalid';
+webpush.setVapidDetails(VAPID_SUBJECT, vapid.publicKey, vapid.privateKey);
+// Solo se envían avisos a servicios push conocidos (evita que el servidor llame a URLs arbitrarias).
+const PUSH_HOSTS = [/(^|\.)push\.apple\.com$/, /^fcm\.googleapis\.com$/, /^android\.googleapis\.com$/,
+  /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/];
+function validSubscription(sub) {
+  try {
+    if (!sub || typeof sub.endpoint !== 'string' || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return false;
+    if (JSON.stringify(sub).length > 2000) return false;
+    const u = new URL(sub.endpoint);
+    if (process.env.PUSH_ALLOW_ANY) return u.protocol === 'https:';
+    return u.protocol === 'https:' && PUSH_HOSTS.some((re) => re.test(u.hostname));
+  } catch { return false; }
+}
+// Textos traducidos: se reutiliza public/i18n.js (el mismo archivo que usa el navegador).
+const I18N = (() => {
+  const ctx = { window: {}, navigator: {} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'public', 'i18n.js'), 'utf8'), ctx);
+  return ctx.window.I18N;
+})();
+function tr(lang, key, vars = {}) {
+  const t = (I18N[lang] && I18N[lang][key]) || I18N.es[key] || key;
+  return String(t).replace(/\{(\w)\}/g, (_, k) => (vars[k] ?? ''));
+}
+let pushQueue = []; // [{visit, key}]
+function queuePush(v, key) { if (v.push) pushQueue.push({ v, key }); }
+function flushPush() {
+  const byVisit = new Map();
+  for (const item of pushQueue) {
+    // Si en el mismo cambio le toca el turno, ese aviso sustituye a los demás.
+    const prev = byVisit.get(item.v.id);
+    if (!prev || item.key === 'st_turno') byVisit.set(item.v.id, item);
+  }
+  pushQueue = [];
+  for (const { v, key } of byVisit.values()) {
+    const sub = v.push;
+    if (!sub) continue;
+    const body = tr(v.lang || 'es', key, { d: v.dock });
+    const payload = JSON.stringify({ title: `Rademacher · ${tr(v.lang || 'es', 'dock')} ${v.dock}`, body, url: `/c/${v.code}`, tag: v.code });
+    webpush.sendNotification(sub, payload, { TTL: 3600, urgency: 'high' }).catch((err) => {
+      if (err && (err.statusCode === 404 || err.statusCode === 410)) { // suscripción caducada
+        if (v.push === sub) { v.push = null; save(); }
+      } else console.warn('push error', err && (err.statusCode || err.message));
+    });
+  }
+}
 
 // ---------------------------------------------------------------- estado
 function emptyState() {
@@ -80,15 +138,18 @@ function promote() {
     const q = dockQueue(d.id);
     if (q.some((v) => v.status === 'turno' || v.status === 'en_muelle')) continue;
     const next = q.find((v) => v.status === 'espera');
-    if (next) { next.status = 'turno'; next.calledAt = now(); }
+    if (next) { next.status = 'turno'; next.calledAt = now(); queuePush(next, 'st_turno'); }
   }
 }
 
 function commit() {
   promote();
+  // Al cerrar la visita se borra la suscripción push (minimización de datos)
+  for (const v of state.visits) if (!ACTIVE.includes(v.status) && v.push) v.push = null;
   save();
   version++;
   broadcast();
+  flushPush();
 }
 
 function purge() {
@@ -144,12 +205,15 @@ function kpis() {
   };
 }
 
+// La oficina ve si el chófer tiene avisos activados, pero nunca la suscripción en sí.
+function officeVisit(v) { const { push, ...rest } = v; return { ...rest, pushOn: !!push }; }
+
 function officeView() {
   return {
     version,
-    docks: state.docks.map((d) => ({ ...d, queue: dockQueue(d.id) })),
+    docks: state.docks.map((d) => ({ ...d, queue: dockQueue(d.id).map(officeVisit) })),
     history: state.visits.filter((v) => !ACTIVE.includes(v.status))
-      .sort((a, b) => b.closedAt - a.closedAt).slice(0, 50),
+      .sort((a, b) => b.closedAt - a.closedAt).slice(0, 50).map(officeVisit),
     kpis: kpis(),
   };
 }
@@ -196,7 +260,24 @@ const clean = (s, max = 60) => String(s == null ? '' : s).replace(/[\u0000-\u001
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon' };
 
+// Manifiesto de la app instalable. start_url incluye el código del chófer para que, al
+// abrir el icono de la pantalla de inicio (iPhone), aparezca directamente su turno.
+function serveManifest(req, res) {
+  const c = new URL(req.url, 'http://x').searchParams.get('c') || '';
+  const start = /^[A-Za-z0-9]{3,10}$/.test(c) ? `/c/${c.toUpperCase()}` : '/chofer';
+  const body = JSON.stringify({
+    name: 'Rademacher Muelles', short_name: 'Muelles', start_url: start, scope: '/', display: 'standalone',
+    background_color: '#0b3d91', theme_color: '#0b3d91', lang: 'es',
+    icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }],
+  });
+  res.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' });
+  res.end(body);
+}
+
 function serveStatic(req, res, pathname) {
+  if (pathname === '/manifest.webmanifest') return serveManifest(req, res);
   let file = pathname;
   if (file === '/') file = '/index.html';
   else if (/^\/c\/[A-Za-z0-9]+\/?$/.test(file) || file === '/chofer') file = '/chofer.html';
@@ -225,18 +306,26 @@ async function api(req, res, pathname) {
   }
 
   if (m === 'GET' && pathname === '/api/health') return send(res, 200, { ok: true, version });
+  if (m === 'GET' && pathname === '/api/push/key') return send(res, 200, { publicKey: vapid.publicKey });
   if (m === 'GET' && pathname === '/api/public') return send(res, 200, publicView());
 
   // ---- Chófer
-  if ((match = pathname.match(/^\/api\/driver\/([A-Za-z0-9]{3,10})(?:\/(arrive|finish|ack|lang))?$/))) {
+  if ((match = pathname.match(/^\/api\/driver\/([A-Za-z0-9]{3,10})(?:\/(arrive|finish|ack|lang|push))?$/))) {
     const code = match[1].toUpperCase();
     const v = state.visits.find((x) => x.code === code);
     if (!v) return send(res, 404, { error: 'not_found' });
     const action = match[2];
-    if (m === 'GET' && !action) return send(res, 200, driverView(v));
+    if (m === 'GET' && !action) return send(res, 200, { ...driverView(v), pushOn: !!v.push });
     if (m !== 'POST' || !action) return send(res, 405, { error: 'method' });
     const body = await readBody(req).catch(() => ({}));
     if (action === 'lang') { v.lang = clean(body.lang, 5); save(); return send(res, 200, { ok: true }); }
+    if (action === 'push') {
+      if (!ACTIVE.includes(v.status)) return send(res, 409, { error: 'closed' });
+      if (!validSubscription(body.subscription)) return send(res, 400, { error: 'bad_subscription' });
+      v.push = { endpoint: body.subscription.endpoint, keys: { p256dh: String(body.subscription.keys.p256dh), auth: String(body.subscription.keys.auth) } };
+      save();
+      return send(res, 200, { ok: true });
+    }
     if (action === 'ack') { if (v.message) v.message.read = true; commit(); return send(res, 200, driverView(v)); }
     if (action === 'arrive') {
       if (v.status !== 'turno') return send(res, 409, { error: 'not_your_turn', view: driverView(v) });
@@ -289,7 +378,7 @@ async function api(req, res, pathname) {
       };
       state.visits.push(v);
       commit();
-      return send(res, 201, v);
+      return send(res, 201, officeVisit(v));
     }
 
     if ((match = pathname.match(/^\/api\/office\/visits\/(\d+)$/)) && m === 'POST') {
@@ -304,6 +393,7 @@ async function api(req, res, pathname) {
           if (dock !== v.dock) {
             v.dock = dock; v.status = 'espera'; v.queuedAt = now(); v.calledAt = null; v.dockedAt = null;
             v.message = { key: 'm_dock', at: now(), read: false };
+            queuePush(v, 'm_dock');
           }
           break;
         }
@@ -324,11 +414,11 @@ async function api(req, res, pathname) {
           v.status = 'cancelado'; v.closedAt = now(); v.closedBy = 'oficina'; break;
         case 'message':
           if (!MESSAGES.includes(b.key)) return send(res, 400, { error: 'bad_message' });
-          v.message = { key: b.key, at: now(), read: false }; break;
+          v.message = { key: b.key, at: now(), read: false }; queuePush(v, b.key); break;
         default: return send(res, 400, { error: 'bad_action' });
       }
       commit();
-      return send(res, 200, v);
+      return send(res, 200, officeVisit(v));
     }
 
     if ((match = pathname.match(/^\/api\/office\/docks\/(\d+)$/)) && m === 'POST') {

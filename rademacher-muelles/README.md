@@ -1,6 +1,6 @@
 # Rademacher SL · Gestión de muelles y turnos (Girona)
 
-Aplicación web para asignar los **14 muelles** a los chóferes, gestionar los **turnos por muelle** y permitir que el chófer avise desde su móvil de que ha **terminado la carga/descarga**, para que el siguiente sea llamado automáticamente. Interfaz del chófer en **16 idiomas**.
+Aplicación web para asignar los **14 muelles** a los chóferes, gestionar los **turnos por muelle** y permitir que el chófer avise desde su móvil de que ha **terminado la carga/descarga**, para que el siguiente sea llamado automáticamente. Interfaz del chófer en **16 idiomas**. Funciona en **Android (APK)** y en **iPhone** (app web instalable con avisos push).
 
 ## Flujo operativo
 
@@ -21,16 +21,20 @@ Estados: `En espera` → `Llamado (su turno)` → `En muelle` → `Finalizado` (
 - **`/oficina`** (PIN): registro de llegadas, vista de los 14 muelles con su cola, mover chófer a otro muelle, adelantar en la cola, cerrar/abrir muelle (avería, limpieza…), finalizar/cancelar, reimprimir ticket y **enviar mensajes predefinidos** que el chófer recibe traducidos (acuda a oficina, documentos listos, retraso, abra puertas, motor/freno/calzos).
   KPIs del día: finalizados, cargas, descargas, **tiempo medio de espera** y **tiempo medio en muelle** (útiles para analizar el *dock-to-stock* y la saturación de muelles).
 - **`/c/CÓDIGO`** (móvil del chófer): sin instalación ni registro. Idioma detectado del teléfono y seleccionable.
+  - **iPhone (iOS 16.4+)**: Compartir → «Añadir a pantalla de inicio» y abrir desde el icono → botón «Activar avisos de turno». Recibe notificación de turno, cambio de muelle y mensajes de oficina aunque la app esté cerrada.
+  - **Android en navegador** (Chrome): el mismo botón activa las notificaciones push sin instalar nada.
+  - Las suscripciones push se borran al cerrar la visita y solo se envían a los servicios de Apple, Google, Mozilla y Microsoft.
 - **`/pantalla`**: para una TV en la sala de chóferes; muestra los 14 muelles y rota el idioma cada 8 s.
 
 Idiomas: español, catalán, inglés, francés, alemán, italiano, portugués, neerlandés, polaco, rumano, búlgaro, ruso, ucraniano, checo, lituano y turco (`public/i18n.js`). Son traducciones fijas, no traducción automática en línea: funcionan sin internet externo y no envían datos a terceros. **Conviene que un hablante nativo revise cada idioma** antes de usarlo en producción.
 
 ## Puesta en marcha
 
-Requisitos: Node.js 18 o superior. Sin dependencias.
+Requisitos: Node.js 18 o superior. Única dependencia: `web-push` (avisos push).
 
 ```bash
 cd rademacher-muelles
+npm install
 OFFICE_PIN=un_pin_seguro npm start      # http://localhost:3000
 npm test                                 # pruebas de la API
 ```
