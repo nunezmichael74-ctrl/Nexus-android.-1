@@ -276,8 +276,18 @@ function serveManifest(req, res) {
   res.end(body);
 }
 
+// Enlace único del cartel (QR): Android descarga el APK; iPhone y resto ven la página de instalación.
+const APK_URL = process.env.APK_URL ||
+  'https://github.com/nunezmichael74-ctrl/Nexus-android.-1/releases/latest/download/RademacherMuelles.apk';
+function serveAppLink(req, res) {
+  const ua = String(req.headers['user-agent'] || '');
+  if (/Android/i.test(ua)) { res.writeHead(302, { Location: APK_URL, 'Cache-Control': 'no-store' }); return res.end(); }
+  return serveStatic(req, res, '/instalar.html');
+}
+
 function serveStatic(req, res, pathname) {
   if (pathname === '/manifest.webmanifest') return serveManifest(req, res);
+  if (pathname === '/app' || pathname === '/app/') return serveAppLink(req, res);
   let file = pathname;
   if (file === '/') file = '/index.html';
   else if (/^\/c\/[A-Za-z0-9]+\/?$/.test(file) || file === '/chofer') file = '/chofer.html';
