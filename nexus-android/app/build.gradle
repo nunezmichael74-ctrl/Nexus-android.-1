@@ -1,0 +1,67 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "org.jetbrains.kotlin.plugin.compose"
+}
+
+// Firma de release opcional: si existen las variables (secretos de GitHub), el APK de release
+// se firma con tu clave y las actualizaciones se instalan encima sin desinstalar.
+def keystorePath = System.getenv("NEXUS_KEYSTORE_PATH")
+
+android {
+    namespace "com.nexusknowledge.app"
+    compileSdk 34
+
+    defaultConfig {
+        // Mismo identificador que la app WebView anterior: esta versión la sustituye.
+        applicationId "com.nexusknowledge.demo"
+        minSdk 26
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
+        versionName System.getenv("VERSION_NAME") ?: "2.0.0"
+    }
+
+    signingConfigs {
+        if (keystorePath) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv("NEXUS_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("NEXUS_KEY_ALIAS")
+                keyPassword System.getenv("NEXUS_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keystorePath) signingConfig signingConfigs.release
+        }
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    def composeBom = platform("androidx.compose:compose-bom:2024.09.00")
+    implementation composeBom
+    implementation "androidx.core:core-ktx:1.13.1"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
+    implementation "androidx.activity:activity-compose:1.9.2"
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.foundation:foundation"
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.compose.material:material-icons-core"
+
+    testImplementation "junit:junit:4.13.2"
+}

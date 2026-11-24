@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F9FC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111A2C" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Nexus Knowledge · demo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317233B'/%3E%3Cpath d='M18 46V18l28 28V18' stroke='%23FFE45C' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+/* =====================================================================
+   Nexus Knowledge — demo interactiva (un solo archivo, sin conexión)
+   Identidad: cuaderno cuadriculado + tinta azul + subrayador fluorescente
+   ===================================================================== */
+:root {
+  --paper: #F7F9FC;
+  --sheet: #FFFFFF;
+  --grid: #E2EAF4;
+  --ink: #17233B;
+  --ink-soft: #55627C;
+  --rule: #D5DEEA;
+  --margin: #E4625C;
+  --hl: #FFE45C;
+  --hl-soft: #FFF3A8;
+  --ok: #1E8A55;
+  --ok-soft: #E3F4EA;
+  --danger: #B42318;
+  --focus: #3157D5;
+  --shadow: 0 1px 0 #D5DEEA, 0 8px 24px -16px rgba(23, 35, 59, .35);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tabbar-h: 64px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111A2C; --sheet: #172238; --grid: #1C2840; --ink: #E8EDF6; --ink-soft: #9DAAC3;
+    --rule: #2A3756; --margin: #B4544F; --hl: #D9C23A; --hl-soft: #4A4422; --ok: #4CC38A; --ok-soft: #173A2C;
+    --danger: #F2827A; --focus: #8FA9FF; --shadow: 0 1px 0 #24314E, 0 10px 24px -18px rgba(0,0,0,.8);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111A2C; --sheet: #172238; --grid: #1C2840; --ink: #E8EDF6; --ink-soft: #9DAAC3;
+  --rule: #2A3756; --margin: #B4544F; --hl: #D9C23A; --hl-soft: #4A4422; --ok: #4CC38A; --ok-soft: #173A2C;
+  --danger: #F2827A; --focus: #8FA9FF; --shadow: 0 1px 0 #24314E, 0 10px 24px -18px rgba(0,0,0,.8);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; color: var(--ink); font: 16px/1.5 var(--sans);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+mark { background: linear-gradient(transparent 52%, var(--hl) 52%, var(--hl) 92%, transparent 92%); color: inherit; padding: 0 .1em; }
+
+/* --- Estructura ------------------------------------------------------------ */
+.topbar {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--rule);
+}
+.brand { display: flex; align-items: center; gap: 8px; text-decoration: none; font: 700 20px/1 var(--serif); letter-spacing: -.01em; }
+.brand svg { width: 28px; height: 28px; flex: none; }
+.topbar .title { flex: 1; min-width: 0; font-weight: 600; color: var(--ink-soft); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 12px; background: transparent; }
+.icon-btn:hover { background: var(--grid); }
+.icon-btn svg { width: 22px; height: 22px; }
+.dot-badge { position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--margin); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+
+main:focus { outline: none; }
+main { position: relative; max-width: 760px; margin: 0 auto; padding: 16px 16px calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 32px) 30px; }
+main::before { content: ""; position: fixed; top: 0; bottom: 0; left: max(14px, calc(50% - 366px)); width: 1.5px; background: var(--margin); opacity: .55; pointer-events: none; }
+
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr);
+  padding: 6px max(8px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)); background: var(--sheet); border-top: 1px solid var(--rule);
+}
+.tabbar a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; text-decoration: none; color: var(--ink-soft); font-size: 12px; font-weight: 600; border-radius: 12px; }
+.tabbar a svg { width: 24px; height: 24px; }
+.tabbar a[aria-current="page"] { color: var(--ink); }
+.tabbar a[aria-current="page"] span { background: linear-gradient(transparent 55%, var(--hl) 55%); }
+@media (min-width: 900px) {
+  .tabbar { left: 50%; right: auto; bottom: 16px; transform: translateX(-50%); width: 560px; border: 1px solid var(--rule); border-radius: 18px; box-shadow: var(--shadow); }
+}
+
+/* --- Tipografía --------------------------------------------------------------- */
+h1, h2, h3 { font-family: var(--serif); letter-spacing: -.01em; margin: 0; }
+h1 { font-size: 30px; line-height: 1.15; }
+h2 { font-size: 22px; line-height: 1.25; }
+h3 { font-size: 18px; line-height: 1.3; }
+.muted { color: var(--ink-soft); }
+.small { font-size: 13px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-soft); font-size: 13px; }
+.meta span { display: inline-flex; align-items: center; gap: 4px; }
+.meta svg { width: 15px; height: 15px; }
+
+/* --- Controles --------------------------------------------------------------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper); font-weight: 650; text-decoration: none; }
+.btn.secondary { background: transparent; color: var(--ink); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink); }
+.btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn svg { width: 18px; height: 18px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1.5px solid var(--rule); background: var(--sheet); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.chip .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: 1px; }
+.segmented { display: inline-flex; padding: 4px; gap: 4px; border-radius: 14px; background: var(--grid); }
+.segmented button { min-height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; font-weight: 650; font-size: 14px; color: var(--ink-soft); }
+.segmented button[aria-selected="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+label.field { display: flex; flex-direction: column; gap: 6px; font-weight: 650; font-size: 14px; }
+.input, textarea.input, select.input { width: 100%; min-height: 46px; padding: 11px 14px; border: 1.5px solid var(--rule); border-radius: 12px; background: var(--sheet); font-weight: 400; font-size: 16px; }
+textarea.input { min-height: 140px; resize: vertical; line-height: 1.5; }
+.input:focus { border-color: var(--ink); outline: none; }
+.hint { font-weight: 400; font-size: 13px; color: var(--ink-soft); }
+.error-text { color: var(--danger); font-size: 13px; font-weight: 500; }
+.search { position: relative; }
+.search svg { position: absolute; left: 14px; top: 50%; width: 20px; height: 20px; transform: translateY(-50%); color: var(--ink-soft); }
+.search .input { padding-left: 44px; }
+
+/* --- Hojas (preguntas, respuestas) ---------------------------------------------- */
+.sheet { position: relative; background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px 14px 14px 4px; box-shadow: var(--shadow); }
+.q-list { display: flex; flex-direction: column; gap: 12px; }
+.q-item { display: block; padding: 14px 16px 14px 20px; text-decoration: none; }
+.q-item::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 5px; border-radius: 0 4px 4px 0; background: var(--cat, var(--ink-soft)); }
+.q-item h3 { font-size: 18px; margin: 4px 0 6px; }
+.q-item p { margin: 0 0 10px; color: var(--ink-soft); font-size: 14.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cat-name { font-size: 13px; font-weight: 700; color: var(--cat, var(--ink-soft)); }
+:root[data-theme="dark"] .cat-name { color: color-mix(in srgb, var(--cat, var(--ink-soft)) 55%, white); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cat-name { color: color-mix(in srgb, var(--cat, var(--ink-soft)) 55%, white); } }
+.reason { font-size: 12.5px; color: var(--ink-soft); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); padding: 2px 8px; border-radius: 6px; background: var(--grid); }
+.solved { display: inline-flex; align-items: center; gap: 4px; color: var(--ok); font-weight: 700; }
+.solved svg { width: 17px; height: 17px; }
+
+.efe { padding: 16px 18px 16px 20px; display: grid; gap: 6px; }
+.efe .when { font-size: 13px; font-weight: 700; color: var(--margin); }
+.efe .year { font: 700 40px/1 var(--serif); letter-spacing: -.02em; }
+
+/* --- Detalle --------------------------------------------------------------- */
+.detail-head { display: grid; gap: 10px; }
+.post { display: grid; grid-template-columns: 48px 1fr; gap: 12px; padding: 16px; }
+.post.accepted { border-color: color-mix(in srgb, var(--ok) 55%, var(--rule)); }
+.post.accepted::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; border: 2px solid var(--ok); pointer-events: none; opacity: .55; }
+.vote { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.vote button { display: grid; place-items: center; width: 44px; height: 40px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-soft); }
+.vote button:hover:not(:disabled) { background: var(--grid); }
+.vote button[aria-pressed="true"] { color: var(--ink); background: var(--hl-soft); }
+.vote button:disabled { opacity: .35; cursor: not-allowed; }
+.vote svg { width: 24px; height: 24px; }
+.vote .score { font: 700 18px/1 var(--sans); font-variant-numeric: tabular-nums; }
+.accept { margin-top: 6px; }
+.accept button { width: 44px; height: 44px; color: var(--ink-soft); border: 1.5px dashed var(--rule); }
+.accept button[aria-pressed="true"] { color: #fff; background: var(--ok); border-color: var(--ok); }
+.accept-static { margin-top: 8px; color: var(--ok); }
+.accept-static svg { width: 30px; height: 30px; }
+.solution-flag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 8px; background: var(--ok-soft); color: var(--ok); font-weight: 700; font-size: 13px; }
+.solution-flag svg { width: 16px; height: 16px; }
+.md p { margin: 0 0 10px; }
+.md p:last-child { margin-bottom: 0; }
+.md ul { margin: 0 0 10px; padding-left: 20px; }
+.md code { padding: 1px 5px; border-radius: 5px; background: var(--grid); font-size: .92em; }
+.author { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
+.avatar { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; flex: none; }
+.rep { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--grid); font-weight: 700; font-size: 12px; color: var(--ink); }
+.ai { padding: 16px 18px; border-style: dashed; background: color-mix(in srgb, var(--hl-soft) 40%, var(--sheet)); }
+.ai summary { cursor: pointer; font-weight: 700; display: flex; align-items: center; gap: 8px; list-style: none; }
+.ai summary::-webkit-details-marker { display: none; }
+.ai summary svg { width: 18px; height: 18px; }
+.ai ul { margin: 10px 0; padding-left: 20px; }
+.ai .ref { color: var(--ink-soft); white-space: nowrap; }
+.related a { display: block; padding: 10px 0; border-top: 1px solid var(--rule); text-decoration: none; font-weight: 600; }
+.related a:first-of-type { border-top: 0; }
+
+/* --- Historia --------------------------------------------------------------- */
+.era-bar { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.era-bar .btn { flex: none; white-space: nowrap; }
+.timeline { position: relative; overflow-x: auto; overflow-y: hidden; margin: 0 -16px 0 -30px; padding: 0 16px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.track { position: relative; height: 350px; }
+.axis { position: absolute; left: 0; right: 0; top: 175px; height: 2px; background: var(--ink); }
+.tick { position: absolute; top: 202px; width: 2px; height: 18px; background: var(--ink); }
+.tick span { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font: 700 13px/1 var(--serif); white-space: nowrap; color: var(--ink-soft); }
+.ev { position: absolute; width: 190px; scroll-snap-align: center; }
+.ev .stem { position: absolute; left: 0; width: 2px; background: var(--ev); opacity: .6; }
+.ev .pin { position: absolute; left: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--ev); border: 3px solid var(--paper); top: 168px; }
+.ev button { position: absolute; left: 0; width: 190px; text-align: left; padding: 10px 12px 10px 14px; border: 1px solid var(--rule); border-left: 4px solid var(--ev); border-radius: 4px 12px 12px 4px; background: var(--sheet); box-shadow: var(--shadow); }
+.ev .ev-year { font: 700 14px/1.2 var(--sans); color: var(--ev); }
+.ev .ev-title { display: block; margin-top: 2px; font: 600 15px/1.25 var(--serif); }
+.ev .ev-debates { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-soft); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-soft); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+/* --- Proyectos y perfil ------------------------------------------------------ */
+.project { padding: 16px 18px; display: grid; gap: 8px; text-decoration: none; }
+.status { display: inline-block; padding: 2px 9px; border-radius: 7px; font-size: 12.5px; font-weight: 700; }
+.status.recruiting { background: var(--hl-soft); color: var(--ink); }
+.status.active { background: var(--ok-soft); color: var(--ok); }
+.status.completed { background: var(--grid); color: var(--ink-soft); }
+.timeline-list { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--rule); display: grid; gap: 14px; }
+.timeline-list li { position: relative; }
+.timeline-list li::before { content: ""; position: absolute; left: -25px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--sheet); border: 2px solid var(--ink); }
+.profile-head { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; padding: 18px; }
+.profile-head .avatar { width: 64px; height: 64px; font-size: 26px; }
+.rep-big { font: 700 44px/1 var(--serif); letter-spacing: -.02em; }
+.progress { height: 10px; border-radius: 5px; background: var(--grid); overflow: hidden; }
+.progress > div { height: 100%; background: var(--hl); border-right: 2px solid var(--ink); transition: width .5s ease; }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.badge { padding: 12px; border: 1.5px dashed var(--rule); border-radius: 12px; display: grid; gap: 2px; }
+.badge.on { border-style: solid; border-color: var(--ink); background: var(--sheet); }
+.badge b { font-family: var(--serif); font-size: 17px; }
+.ledger { list-style: none; margin: 0; padding: 0; }
+.ledger li { display: flex; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
+.ledger .delta { min-width: 42px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.delta.pos { color: var(--ok); }
+.delta.neg { color: var(--danger); }
+
+/* --- Hoja inferior, toasts, FAB ---------------------------------------------- */
+.fab { position: fixed; right: max(18px, calc(50% - 360px)); bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 18px); z-index: 15; display: inline-flex; align-items: center; gap: 8px; height: 54px; padding: 0 20px; border: 0; border-radius: 27px; background: var(--ink); color: var(--paper); font-weight: 700; box-shadow: 0 10px 26px -10px rgba(23,35,59,.6); text-decoration: none; }
+.fab svg { width: 22px; height: 22px; }
+@media (min-width: 900px) { .fab { bottom: 100px; } }
+.scrim { position: fixed; inset: 0; z-index: 40; background: rgba(10, 16, 30, .45); display: none; }
+.scrim.open { display: block; }
+.bottom-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-height: 86dvh; overflow: auto; padding: 8px 20px calc(24px + env(safe-area-inset-bottom)); background: var(--sheet); border-radius: 20px 20px 0 0; transform: translateY(105%); visibility: hidden; transition: transform .28s cubic-bezier(.2,.8,.2,1), visibility 0s linear .28s; }
+.bottom-sheet.open { transform: none; visibility: visible; transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+.bottom-sheet .grabber { width: 40px; height: 5px; border-radius: 3px; background: var(--rule); margin: 4px auto 14px; }
+@media (min-width: 760px) { .bottom-sheet { left: 50%; right: auto; width: 640px; transform: translate(-50%, 105%); border-radius: 20px 20px 0 0; } .bottom-sheet.open { transform: translate(-50%, 0); } }
+.toasts { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 70px); z-index: 60; transform: translateX(-50%); display: grid; gap: 8px; width: min(92vw, 420px); pointer-events: none; }
+.toast { padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper); font-weight: 600; font-size: 14.5px; box-shadow: 0 12px 30px -12px rgba(0,0,0,.5); animation: toast-in .25s ease; }
+.toast .plus { color: var(--hl); font-weight: 800; }
+@keyframes toast-in { from { transform: translateY(-8px); opacity: 0; } }
+.notif { display: grid; gap: 2px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.notif.unread b::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--margin); margin-right: 8px; vertical-align: 2px; }
+.empty { padding: 28px 20px; text-align: center; color: var(--ink-soft); }
+.callout { padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--ink); background: var(--hl-soft); }
+.callout.warn { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--sheet)); }
+.back { display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 6px -8px; padding: 6px 8px; border-radius: 10px; text-decoration: none; font-weight: 600; color: var(--ink-soft); }
+.back svg { width: 20px; height: 20px; }
+.intro { padding: 18px 18px 18px 22px; }
+.intro p { margin: 6px 0 0; color: var(--ink-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12h18M6 8v8M12 6v12M18 9v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-projects" viewBox="0 0 24 24"><path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 5 4 15h16z" fill="currentColor"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 19 4 9h16z" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.8c2 1.6 3.4 3.2 4.6 5.2C11.6 12.2 15 8.2 19.8 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z" fill="currentColor"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4m0 0h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#/" aria-label="Nexus Knowledge, inicio">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#17233B"/><path d="M18 46V18l28 28V18" stroke="#FFE45C" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Nexus
+  </a>
+  <div class="title" id="topTitle"></div>
+  <button class="icon-btn" id="bellBtn" aria-label="Notificaciones"><svg><use href="#i-bell"/></svg><span class="dot-badge" id="bellBadge" hidden></span></button>
+</header>
+
+<main id="view" tabindex="-1"></main>
+
+<nav class="tabbar" aria-label="Secciones">
+  <a href="#/" data-tab="inicio"><svg aria-hidden="true"><use href="#i-home"/></svg><span>Inicio</span></a>
+  <a href="#/explorar" data-tab="explorar"><svg aria-hidden="true"><use href="#i-search"/></svg><span>Explorar</span></a>
+  <a href="#/historia" data-tab="historia"><svg aria-hidden="true"><use href="#i-history"/></svg><span>Historia</span></a>
+  <a href="#/proyectos" data-tab="proyectos"><svg aria-hidden="true"><use href="#i-projects"/></svg><span>Proyectos</span></a>
+  <a href="#/perfil" data-tab="perfil"><svg aria-hidden="true"><use href="#i-user"/></svg><span>Perfil</span></a>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<section class="bottom-sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="grabber"></div><div id="sheetBody"></div></section>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Datos de ejemplo (equivalentes al seed del backend)
+   ===================================================================== */
+const ME = "michel";
+const HOUR = 3600e3, DAY = 24 * HOUR;
+const NOW = Date.now();
+
+const CATEGORIES = [
+  { slug: "historia", name: "Historia", color: "#9A4F22" },
+  { slug: "ciencia", name: "Ciencia", color: "#0E7C86" },
+  { slug: "tecnologia", name: "Tecnología", color: "#4453C4" },
+  { slug: "arte", name: "Arte", color: "#A8327A" },
+  { slug: "logistica", name: "Logística", color: "#5E6E10" },
+];
+
+const BADGES = [
+  { slug: "novato", name: "Novato", min: 0, text: "Primeros puntos de reputación" },
+  { slug: "colaborador", name: "Colaborador", min: 100, text: "Más de 100 puntos" },
+  { slug: "experto", name: "Experto", min: 1000, text: "Más de 1.000 puntos" },
+  { slug: "sabio", name: "Sabio", min: 10000, text: "Más de 10.000 puntos" },
+];
+
+const RULES = { upvote: 2, downvote: -1, accepted: 10, question: 5 };
+
+function seed() {
+  const users = {
+    michel: { name: "Michel", rep: 86, color: "#3157D5", bio: "Estudiante de FP en Transporte y Logística. Trabajo en almacén.", joined: "marzo de 2026" },
+    ana_garcia: { name: "Ana García", rep: 1240, color: "#0E7C86", bio: "Profesora de Física.", joined: "enero de 2026" },
+    luis_r: { name: "Luis Romero", rep: 412, color: "#5E6E10", bio: "Jefe de tráfico en una empresa de transporte.", joined: "febrero de 2026" },
+    marta_ciencia: { name: "Marta Vidal", rep: 2310, color: "#A8327A", bio: "Bióloga molecular.", joined: "diciembre de 2025" },
+    jordi_dev: { name: "Jordi Puig", rep: 958, color: "#4453C4", bio: "Desarrollador backend.", joined: "enero de 2026" },
+    elena_arte: { name: "Elena Ruiz", rep: 305, color: "#9A4F22", bio: "Guía de museos.", joined: "abril de 2026" },
+    pablo_hist: { name: "Pablo Ortega", rep: 674, color: "#6B4FA0", bio: "Historiador.", joined: "febrero de 2026" },
+  };
+  const q = (id, author, cat, hoursAgo, score, views, tags, title, body, answers, extra = {}) =>
+    ({ id, author, cat, created: NOW - hoursAgo * HOUR, score, views, tags, title, body, myVote: 0, accepted: null, answers, ...extra });
+  const a = (id, author, hoursAgo, score, body, accepted = false) => ({ id, author, created: NOW - hoursAgo * HOUR, score, myVote: 0, body, acceptedSeed: accepted });
+
+  const questions = [
+    q("q1", ME, "logistica", 20, 9, 214, ["fifo", "fefo", "almacen"],
+      "¿Qué diferencia hay entre FIFO y FEFO en un almacén de alimentación?",
+      "En mi almacén se habla de FIFO y de FEFO casi como si fueran lo mismo. ¿Cuándo conviene cada uno y cómo lo gestiona el SGA?",
+      [
+        a("a11", "luis_r", 19, 14, "**FIFO** (*first in, first out*) da salida primero a lo que entró antes. **FEFO** (*first expired, first out*) da salida primero a lo que caduca antes, aunque haya entrado después.\n\nEn alimentación manda la fecha de caducidad, así que lo habitual es FEFO."),
+        a("a12", "ana_garcia", 18, 6, "Si todos los lotes tienen la misma vida útil, FIFO y FEFO dan el mismo resultado. Se separan cuando te llega un lote nuevo con caducidad más corta que el que ya tenías."),
+        a("a13", "jordi_dev", 17, 5, "En el SGA, cada ubicación guarda `lote` y `fecha_caducidad`. La regla de extracción ordena por caducidad (FEFO) o por fecha de entrada (FIFO) al generar las órdenes de picking."),
+        a("a14", "marta_ciencia", 15, 4, "Ojo con los productos con fecha de consumo preferente frente a fecha de caducidad: muchas empresas aplican FEFO solo a los segundos y FIFO al resto."),
+        a("a15", "pablo_hist", 12, 1, "Un apunte: el cliente suele exigir una vida útil mínima en la entrega. Con FEFO puedes acabar enviando lotes demasiado cerca de caducar y que te los rechacen."),
+        a("a16", "elena_arte", 6, 0, "En pequeños almacenes sin SGA se suele aproximar con estanterías dinámicas: se carga por detrás y se saca por delante, que en la práctica es FIFO."),
+      ]),
+    q("q2", ME, "historia", 52, 5, 98, ["roma", "edad-antigua"],
+      "¿Por qué cayó el Imperio romano de Occidente?",
+      "Siempre leo que fue por los «bárbaros», pero sospecho que hubo más causas. ¿Cuáles pesan más según los historiadores?",
+      [
+        a("a21", "pablo_hist", 50, 8, "No hay una causa única. Suelen citarse la crisis fiscal, la dependencia de tropas federadas, la presión en las fronteras y la inestabilidad política, con decenas de emperadores en pocas décadas."),
+        a("a22", "ana_garcia", 46, 3, "La fecha de 476, cuando Odoacro depone a Rómulo Augústulo, es más simbólica que real: el proceso duró generaciones y en Oriente el imperio siguió casi mil años más."),
+        a("a23", "jordi_dev", 30, 1, "Recomiendo *La caída de Roma* de Bryan Ward-Perkins: defiende que sí hubo un colapso material y no solo una «transformación»."),
+      ], { historyEvent: "476" }),
+    q("q3", "ana_garcia", "ciencia", 30, 21, 540, ["fisica", "luz"],
+      "¿Por qué el cielo es azul y los atardeceres son rojos?",
+      "Se lo explico a mis alumnos cada curso y quiero una explicación breve y correcta.",
+      [
+        a("a31", "marta_ciencia", 29, 17, "Por la **dispersión de Rayleigh**: las moléculas del aire dispersan mucho más la luz de longitud de onda corta (azul) que la larga (roja). Al atardecer, la luz atraviesa mucha más atmósfera, el azul se dispersa por el camino y llega sobre todo el rojo y el naranja.", true),
+        a("a32", "jordi_dev", 24, 2, "¿Y por qué no se ve violeta, si tiene aún menos longitud de onda? Porque el Sol emite menos violeta y nuestros ojos son menos sensibles a él."),
+      ]),
+    q("q4", "luis_r", "logistica", 8, 12, 301, ["tacografo", "normativa-ue"],
+      "¿Cuántas horas puede conducir un camionero al día según la normativa europea?",
+      "Tengo conductores nuevos y quiero explicárselo sin errores.",
+      [
+        a("a41", "jordi_dev", 7, 9, "Según el Reglamento (CE) 561/2006: **9 horas diarias**, ampliables a 10 horas dos veces por semana. Máximo 56 horas semanales y 90 en dos semanas consecutivas.\n\nTras 4 h 30 min de conducción hay que hacer una pausa de 45 minutos, que se puede dividir en 15 + 30."),
+      ]),
+    q("q5", "jordi_dev", "tecnologia", 4, 7, 120, ["ia", "embeddings"],
+      "¿Qué es exactamente un embedding en inteligencia artificial?",
+      "Lo leo en todas partes: búsqueda semántica, RAG… ¿Cómo se explica sin fórmulas?",
+      [
+        a("a51", "ana_garcia", 3, 5, "Es una lista de números que representa el significado de un texto. Textos con significado parecido quedan cerca en ese espacio, aunque no compartan palabras: «coche» y «automóvil» acaban juntos."),
+        a("a52", "marta_ciencia", 2, 1, "Por eso la búsqueda semántica compara distancias (similitud coseno) en vez de buscar palabras exactas."),
+      ]),
+    q("q6", "elena_arte", "arte", 70, 6, 156, ["velazquez", "barroco"],
+      "¿Cómo consigue Velázquez la sensación de profundidad en Las Meninas?",
+      "Guío visitas en el Prado y quiero explicarlo mejor.",
+      [
+        a("a61", "pablo_hist", 66, 4, "Combina perspectiva lineal con **perspectiva aérea**: los planos del fondo pierden nitidez y contraste. A eso se suman la luz lateral de las ventanas, el espejo del fondo y la puerta abierta con la figura a contraluz, que abre un espacio más allá de la sala."),
+      ]),
+    q("q7", "ana_garcia", "logistica", 26, 4, 88, ["incoterms", "comercio-exterior"],
+      "¿Qué Incoterm conviene si quiero que el vendedor asuma el transporte principal?",
+      "Importamos de Italia por carretera y no sé si pedir CPT o DAP.",
+      [
+        a("a71", "luis_r", 25, 6, "Con **CPT** el vendedor paga el transporte principal, pero el riesgo pasa a ti al entregar la mercancía al primer transportista. Con **DAP** el vendedor asume coste **y riesgo** hasta el destino convenido, sin descargar. Si quieres que el riesgo del viaje sea suyo, DAP."),
+      ]),
+    q("q8", "marta_ciencia", "ciencia", 100, 15, 420, ["vacunas", "biologia"],
+      "¿Cómo funciona una vacuna de ARN mensajero?",
+      "Busco una explicación clara para divulgación.",
+      [
+        a("a81", "ana_garcia", 98, 7, "El ARN mensajero lleva las instrucciones para fabricar una proteína del virus. Las células las leen, fabrican la proteína y el sistema inmunitario aprende a reconocerla. El ARN no entra en el núcleo ni modifica el ADN, y se degrada en poco tiempo."),
+      ]),
+    q("q9", "jordi_dev", "tecnologia", 1.5, 2, 18, ["postgresql", "bases-de-datos"],
+      "¿PostgreSQL o MongoDB para una app de preguntas y respuestas?",
+      "Tengo usuarios, preguntas, respuestas, votos y etiquetas con muchas relaciones entre sí.", []),
+    q("q10", "pablo_hist", "historia", 140, 11, 260, ["calendario", "edad-antigua"],
+      "¿Por qué no existe el año 0 en nuestro calendario?",
+      "Del 1 a. C. se pasa directamente al 1 d. C. ¿De dónde viene?",
+      [
+        a("a101", "ana_garcia", 139, 9, "El cómputo lo fijó Dionisio el Exiguo en el siglo VI y en Europa no se usaba el cero como número. Los astrónomos sí usan un año 0 para facilitar los cálculos: el año astronómico −1 equivale al 2 a. C.", true),
+      ]),
+    q("q11", "luis_r", "logistica", 3, 3, 40, ["kpi", "otif"],
+      "¿Cómo se calcula el OTIF y qué valor se considera bueno?",
+      "En la empresa nos piden mejorar el OTIF y no tengo claro cómo medirlo.", []),
+  ];
+  for (const question of questions) {
+    for (const ans of question.answers) if (ans.acceptedSeed) question.accepted = ans.id;
+  }
+  const projects = [
+    { id: "p1", title: "Glosario abierto de logística en español", owner: "luis_r", status: "recruiting", cat: "logistica", slots: 2,
+      tech: ["markdown", "nextjs", "meilisearch"], members: ["luis_r", "jordi_dev"], created: NOW - 12 * DAY,
+      desc: "Definiciones claras y revisadas de términos de almacén, transporte y comercio exterior, con ejemplos reales. Buscamos personas del sector para redactar y revisar.",
+      updates: [{ t: NOW - 12 * DAY, who: "luis_r", text: "Proyecto creado." }, { t: NOW - 5 * DAY, who: "jordi_dev", text: "Se unió al proyecto." }, { t: NOW - 2 * DAY, who: "luis_r", text: "Primeras 80 definiciones publicadas: picking, cross-docking, OTIF, Incoterms." }] },
+    { id: "p2", title: "Mapa interactivo de la Hispania romana", owner: "pablo_hist", status: "active", cat: "historia", slots: 0,
+      tech: ["javascript", "leaflet", "python"], members: ["pablo_hist", "elena_arte", "jordi_dev"], created: NOW - 40 * DAY,
+      desc: "Calzadas, ciudades y yacimientos de la península con fuentes citadas.",
+      updates: [{ t: NOW - 40 * DAY, who: "pablo_hist", text: "Proyecto creado." }, { t: NOW - 9 * DAY, who: "pablo_hist", text: "Vía Augusta completa entre Gades y Tarraco." }] },
+    { id: "p3", title: "Archivo oral de oficios desaparecidos", owner: "elena_arte", status: "recruiting", cat: "arte", slots: 3,
+      tech: ["audio", "transcripcion"], members: ["elena_arte"], created: NOW - 6 * DAY,
+      desc: "Entrevistas a personas mayores sobre oficios que ya no existen, transcritas y con permiso de publicación.",
+      updates: [{ t: NOW - 6 * DAY, who: "elena_arte", text: "Proyecto creado." }] },
+    { id: "p4", title: "Calculadora de emisiones del transporte por carretera", owner: "jordi_dev", status: "completed", cat: "tecnologia", slots: 0,
+      tech: ["typescript", "react"], members: ["jordi_dev", "luis_r"], created: NOW - 90 * DAY,
+      desc: "Estimación de CO₂ por envío según vehículo, carga y distancia.",
+      updates: [{ t: NOW - 90 * DAY, who: "jordi_dev", text: "Proyecto creado." }, { t: NOW - 20 * DAY, who: "jordi_dev", text: "Versión 1.0 publicada." }] },
+  ];
+  return {
+    v: 3, users, questions, projects, requests: {},
+    ledger: [
+      { t: NOW - 20 * HOUR, delta: 5, text: "Publicaste una pregunta" },
+      { t: NOW - 15 * HOUR, delta: 2, text: "Voto positivo en tu pregunta sobre FIFO y FEFO" },
+    ],
+    notifications: [
+      { id: "n1", t: NOW - 6 * HOUR, read: false, title: "Nueva respuesta", text: "Elena Ruiz respondió a «¿Qué diferencia hay entre FIFO y FEFO…?»", href: "#/q/q1" },
+      { id: "n2", t: NOW - 15 * HOUR, read: true, title: "+2 de reputación", text: "Voto positivo en tu pregunta sobre FIFO y FEFO", href: "#/q/q1" },
+    ],
+    seq: 100,
+  };
+}
+
+/* Hitos de la vista Historia (mismos que app/scripts/seed_history.py) */
+const THEME_NAMES = { exploracion: "Exploración", politica: "Política", religion: "Religión", tecnologia: "Tecnología", economia: "Economía" };
+const themeName = (t) => THEME_NAMES[t] || t[0].toUpperCase() + t.slice(1);
+const REGIONS = { espana: ["España", "#C0392B"], europa: ["Europa", "#3157D5"], america: ["América", "#1E8A55"], global: ["Global", "#6B7280"] };
+const W = "https://es.wikipedia.org/wiki/";
+const HISTORY = [
+  [-776, null, "Primeros Juegos Olímpicos", "Según la tradición, en Olimpia se celebran los primeros Juegos en honor a Zeus; se repetirán cada cuatro años durante más de mil años.", "europa", ["deporte", "sociedad"], "Juegos_Olímpicos_en_la_Antigüedad"],
+  [-218, null, "Roma desembarca en Ampurias", "En plena Segunda Guerra Púnica, las legiones romanas llegan a la península ibérica: comienza la romanización de Hispania.", "espana", ["guerra", "politica"], "Hispania"],
+  [476, null, "Caída del Imperio romano de Occidente", "Odoacro depone a Rómulo Augústulo, último emperador de Occidente. La fecha se usa a menudo como final de la Edad Antigua.", "europa", ["politica"], "Caída_del_Imperio_romano_de_Occidente", "q2"],
+  [711, null, "Batalla de Guadalete", "Las tropas de Tariq derrotan al rey visigodo Rodrigo; se inicia la conquista musulmana de la península ibérica.", "espana", ["guerra", "religion"], "Batalla_de_Guadalete"],
+  [1440, null, "La imprenta de Gutenberg", "Hacia 1440 Johannes Gutenberg desarrolla en Maguncia la imprenta de tipos móviles, que abarata los libros y acelera la difusión del saber.", "europa", ["tecnologia", "cultura"], "Imprenta"],
+  [1492, null, "Toma de Granada", "Boabdil entrega Granada a los Reyes Católicos el 2 de enero: termina el último reino nazarí de la península.", "espana", ["guerra", "politica"], "Toma_de_Granada", null, [1, 2]],
+  [1492, null, "Llegada de Colón a América", "El 12 de octubre la expedición de Cristóbal Colón desembarca en Guanahaní: comienza el contacto continuado entre Europa y América.", "america", ["exploracion"], "Descubrimiento_de_América", null, [10, 12]],
+  [1517, null, "Lutero publica sus 95 tesis", "Martín Lutero difunde en Wittenberg sus críticas a la venta de indulgencias, punto de partida de la Reforma protestante.", "europa", ["religion"], "Reforma_protestante"],
+  [1610, null, "Galileo observa las lunas de Júpiter", "Con su telescopio, Galileo Galilei descubre los cuatro satélites mayores de Júpiter y lo publica en el Sidereus Nuncius.", "europa", ["ciencia"], "Sidereus_Nuncius"],
+  [1789, 1799, "Revolución francesa", "La toma de la Bastilla abre un proceso que acaba con el Antiguo Régimen en Francia y difunde los derechos del hombre y del ciudadano.", "europa", ["politica"], "Revolución_francesa"],
+  [1808, 1814, "Guerra de la Independencia", "Levantamiento contra la ocupación napoleónica; en paralelo, las Cortes de Cádiz impulsan reformas liberales.", "espana", ["guerra"], "Guerra_de_la_Independencia_española"],
+  [1812, null, "Constitución de Cádiz", "Las Cortes promulgan el 19 de marzo la primera constitución española, conocida como «La Pepa».", "espana", ["politica"], "Constitución_española_de_1812", null, [3, 19]],
+  [1859, null, "El origen de las especies", "Charles Darwin expone la teoría de la evolución por selección natural, base de la biología moderna.", "global", ["ciencia"], "El_origen_de_las_especies"],
+  [1869, null, "Tabla periódica de Mendeléyev", "Dmitri Mendeléyev ordena los elementos químicos por sus propiedades y predice la existencia de elementos aún no descubiertos.", "europa", ["ciencia"], "Tabla_periódica_de_los_elementos"],
+  [1914, 1918, "Primera Guerra Mundial", "Conflicto global que transforma el mapa de Europa y provoca la caída de cuatro imperios.", "global", ["guerra"], "Primera_Guerra_Mundial"],
+  [1936, 1939, "Guerra civil española", "Tras el golpe de Estado de julio de 1936, la guerra enfrenta al bando republicano y al sublevado y termina con la dictadura de Franco.", "espana", ["guerra", "politica"], "Guerra_civil_española"],
+  [1939, 1945, "Segunda Guerra Mundial", "El conflicto más mortífero de la historia, con el Holocausto y el uso de armas nucleares.", "global", ["guerra"], "Segunda_Guerra_Mundial"],
+  [1957, null, "Lanzamiento del Sputnik 1", "La URSS pone en órbita el primer satélite artificial e inicia la carrera espacial.", "global", ["ciencia", "tecnologia"], "Sputnik_1", null, [10, 4]],
+  [1969, null, "El Apolo 11 llega a la Luna", "Neil Armstrong y Buzz Aldrin son los primeros seres humanos en pisar la Luna.", "global", ["ciencia"], "Apolo_11", null, [7, 20]],
+  [1978, null, "Constitución española de 1978", "Aprobada en referéndum el 6 de diciembre, consolida la Transición a la democracia.", "espana", ["politica"], "Constitución_española_de_1978", null, [12, 6]],
+  [1986, null, "España entra en la CEE", "El 1 de enero España y Portugal se incorporan a las Comunidades Europeas.", "espana", ["politica", "economia"], "Adhesión_de_España_a_las_Comunidades_Europeas", null, [1, 1]],
+  [1989, null, "Caída del Muro de Berlín", "La apertura de la frontera entre las dos Alemanias simboliza el final de la Guerra Fría en Europa.", "europa", ["politica"], "Caída_del_Muro_de_Berlín", null, [11, 9]],
+  [1991, null, "Nace la World Wide Web", "Tim Berners-Lee pone a disposición pública la web, el sistema de documentos enlazados que popularizará Internet.", "global", ["tecnologia"], "World_Wide_Web"],
+].map(([year, end, title, desc, region, themes, article, question, date], i) => ({ id: "h" + i, year, end, title, desc, region, themes, url: W + article, question, date }));
+
+const AI_SUMMARY = {
+  q1: {
+    text: "Las respuestas coinciden en que FIFO ordena por fecha de entrada y FEFO por fecha de caducidad, y en que en alimentación lo habitual es FEFO.",
+    points: [
+      ["FEFO es el criterio estándar cuando la caducidad importa.", ["a11", "a14"]],
+      ["Con la misma vida útil en todos los lotes, ambos dan el mismo resultado.", ["a12"]],
+      ["El SGA lo resuelve ordenando por lote y caducidad al generar el picking.", ["a13"]],
+      ["Cuidado con la vida útil mínima que exige el cliente.", ["a15"]],
+    ],
+    disagreement: "Una respuesta propone aplicar FEFO solo a la fecha de caducidad y FIFO a la de consumo preferente.",
+  },
+};
+
+/* =====================================================================
+   Estado (se guarda en el navegador si está disponible)
+   ===================================================================== */
+const STORE_KEY = "nexus-demo-v3";
+let S;
+try { S = JSON.parse(localStorage.getItem(STORE_KEY)); } catch { S = null; }
+if (!S || S.v !== 3) S = seed();
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch { /* modo privado: la demo sigue en memoria */ } }
+
+const ui = { feed: "para-ti", feedCat: null, q: "", qCat: null, hRegion: null, hTheme: null, pStatus: null };
+
+/* =====================================================================
+   Utilidades
+   ===================================================================== */
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fold = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const cat = (slug) => CATEGORIES.find((c) => c.slug === slug);
+const user = (u) => S.users[u];
+const nextId = (p) => p + (++S.seq);
+const fmtInt = (n) => n.toLocaleString("es-ES");
+
+function ago(t) {
+  const s = Math.max(1, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return "ahora mismo";
+  const m = Math.round(s / 60); if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60); if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24); if (d < 30) return d === 1 ? "ayer" : `hace ${d} días`;
+  const mo = Math.round(d / 30); return mo === 1 ? "hace un mes" : `hace ${mo} meses`;
+}
+const yearLabel = (y) => (y < 0 ? `${-y} a. C.` : String(y));
+const rangeLabel = (y, e) => (e ? (y < 0 && e < 0 ? `${-y}–${-e} a. C.` : `${yearLabel(y)}–${yearLabel(e)}`) : yearLabel(y));
+const plural = (n, one, many) => `${fmtInt(n)} ${n === 1 ? one : many}`;
+const icon = (id) => `<svg aria-hidden="true"><use href="#i-${id}"/></svg>`;
+
+function avatar(u) {
+  const usr = user(u);
+  const initials = usr.name.split(" ").map((p) => p[0]).slice(0, 2).join("");
+  return `<span class="avatar" style="background:${usr.color}" aria-hidden="true">${esc(initials)}</span>`;
+}
+function authorLine(u, t, verb = "") {
+  const usr = user(u);
+  return `<a class="author" href="#/u/${u}" style="text-decoration:none">${avatar(u)}<span><b style="color:var(--ink)">${esc(usr.name)}</b> <span class="rep" title="Reputación">${fmtInt(usr.rep)}<span class="sr"> de reputación</span></span>${verb ? " " + verb : ""} ${ago(t)}</span></a>`;
+}
+
+/* Markdown mínimo y seguro: se escapa TODO y luego se aplican negrita, cursiva, código y listas. */
+function md(src) {
+  const inline = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return src.split(/\n{2,}/).map((block) => {
+    const lines = block.split("\n");
+    if (lines.every((l) => /^\s*[-*] /.test(l))) return `<ul>${lines.map((l) => `<li>${inline(l.replace(/^\s*[-*] /, ""))}</li>`).join("")}</ul>`;
+    return `<p>${lines.map(inline).join("<br>")}</p>`;
+  }).join("");
+}
+
+/* Resaltado insensible a acentos sobre texto ya escapado. */
+function highlight(text, query) {
+  const words = fold(query).split(/\s+/).filter((w) => w.length > 1);
+  if (!words.length) return esc(text);
+  const accent = { a: "[aá]", e: "[eé]", i: "[ií]", o: "[oó]", u: "[uúü]", n: "[nñ]" };
+  const pattern = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/[aeioun]/g, (c) => accent[c])).join("|");
+  const re = new RegExp(`(${pattern})`, "gi");
+  return text.split(re).map((part, i) => (i % 2 ? `<mark>${esc(part)}</mark>` : esc(part))).join("");
+}
+
+function toast(html, ms = 2600) {
+  const el = document.createElement("div");
+  el.className = "toast"; el.innerHTML = html;
+  $("#toasts").append(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+function openSheet(html, title = "") {
+  $("#sheetBody").innerHTML = html;
+  const t = $("#sheetBody h2"); if (t) t.id = "sheetTitle";
+  $("#sheet").classList.add("open"); $("#scrim").classList.add("open");
+  const focusable = $("#sheet").querySelector("button, a, input"); focusable && focusable.focus();
+}
+function closeSheet() { $("#sheet").classList.remove("open"); $("#scrim").classList.remove("open"); }
+$("#scrim").addEventListener("click", closeSheet);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+
+/* =====================================================================
+   Reputación (mismas reglas que el motor del backend)
+   ===================================================================== */
+function tierOf(rep) { return [...BADGES].reverse().find((b) => rep > b.min) || null; }
+
+function addRep(username, delta, reason) {
+  if (!delta) return;
+  const usr = user(username);
+  const before = tierOf(usr.rep);
+  usr.rep = Math.max(0, usr.rep + delta);
+  if (username === ME) {
+    S.ledger.unshift({ t: Date.now(), delta, text: reason });
+    const after = tierOf(usr.rep);
+    if (after && (!before || after.min > before.min)) setTimeout(() => toast(`Insignia desbloqueada: <span class="plus">${after.name}</span>`, 3600), 700);
+  }
+}
+
+function notify(title, text, href) {
+  S.notifications.unshift({ id: nextId("n"), t: Date.now(), read: false, title, text, href });
+  renderBell();
+}
+
+function score(item) { return item.score + item.myVote; }
+
+function vote(kind, qid, aid, value) {
+  const q = S.questions.find((x) => x.id === qid);
+  const item = kind === "q" ? q : q.answers.find((x) => x.id === aid);
+  if (item.author === ME) return;
+  const prev = item.myVote;
+  const next = prev === value ? 0 : value;           // repetir el mismo voto lo retira
+  const repOf = (v) => (v === 1 ? RULES.upvote : v === -1 ? RULES.downvote : 0);
+  item.myVote = next;
+  addRep(item.author, repOf(next) - repOf(prev), "");
+  save();
+  return { prev, next };
+}
+
+function setAccepted(qid, aid) {
+  const q = S.questions.find((x) => x.id === qid);
+  if (q.author !== ME) return;
+  const previous = q.accepted;
+  const target = previous === aid ? null : aid;      // pulsar la aceptada la retira
+  if (previous) {
+    const old = q.answers.find((x) => x.id === previous);
+    if (old.author !== ME) addRep(old.author, -RULES.accepted, "");
+  }
+  q.accepted = target;
+  if (target) {
+    const ans = q.answers.find((x) => x.id === target);
+    ans.acceptedAt = Date.now();
+    if (ans.author !== ME) addRep(ans.author, RULES.accepted, "");
+  }
+  save();
+  return { previous, target };
+}
+
+/* Simulación: la comunidad reacciona a lo que publica michel */
+function simulateCommunity(qid, aid) {
+  const q = S.questions.find((x) => x.id === qid);
+  const voter = q.author !== ME ? q.author : "ana_garcia";
+  setTimeout(() => {
+    const ans = q.answers.find((x) => x.id === aid); if (!ans) return;
+    ans.score += 1;
+    addRep(ME, RULES.upvote, `Voto positivo en tu respuesta a «${q.title.slice(0, 40)}…»`);
+    notify("+2 de reputación", `${user(voter).name} votó a favor de tu respuesta`, `#/q/${qid}`);
+    toast(`${esc(user(voter).name)} votó tu respuesta: <span class="plus">+2</span>`);
+    save(); rerender();
+  }, 4000);
+  if (q.author !== ME && !q.accepted) {
+    setTimeout(() => {
+      if (q.accepted) return;
+      q.accepted = aid;
+      addRep(ME, RULES.accepted, `Tu respuesta fue aceptada en «${q.title.slice(0, 40)}…»`);
+      notify("Respuesta aceptada", `${user(q.author).name} aceptó tu respuesta: +10`, `#/q/${qid}`);
+      toast(`${esc(user(q.author).name)} aceptó tu respuesta: <span class="plus">+10</span>`, 3400);
+      save(); rerender();
+    }, 9000);
+  }
+}
+
+/* =====================================================================
+   Heurísticas del backend (antispam y duplicados)
+   ===================================================================== */
+function spamCheck(title, body) {
+  const text = `${title}\n${body}`;
+  const reasons = [];
+  const links = text.match(/https?:\/\/\S+|www\.\S+/gi) || [];
+  if (links.length > 3) reasons.push(`Tiene ${links.length} enlaces (máximo 3).`);
+  const letters = [...text].filter((c) => /\p{L}/u.test(c));
+  const upper = letters.filter((c) => c === c.toUpperCase() && c !== c.toLowerCase());
+  if (letters.length >= 20 && upper.length / letters.length > 0.5) reasons.push(`El ${Math.round((upper.length / letters.length) * 100)} % está en mayúsculas.`);
+  const words = fold(text).match(/\p{L}+/gu) || [];
+  if (words.length >= 12) {
+    const counts = {}; words.filter((w) => w.length > 3).forEach((w) => (counts[w] = (counts[w] || 0) + 1));
+    const top = Math.max(0, ...Object.values(counts));
+    if (top / words.length > 0.3) reasons.push("Repite demasiado las mismas palabras.");
+  }
+  if (/(.)\1{9,}/.test(text)) reasons.push("Contiene caracteres repetidos.");
+  return reasons;
+}
+
+const STOP = new Set("el la los las un una unos unas de del y o en a que por para con se es lo al como mas más sus su mi me te le qué que cuál cual cómo como hay entre".split(" "));
+function keywords(s) { return new Set(fold(s).split(/[^a-z0-9ñ]+/).filter((w) => w.length > 2 && !STOP.has(w))); }
+function similarQuestions(title, exclude = null, min = 0.34) {
+  const k = keywords(title); if (k.size < 2) return [];
+  return S.questions.filter((q) => q.id !== exclude).map((q) => {
+    const o = keywords(q.title); const inter = [...k].filter((w) => o.has(w)).length;
+    return { q, sim: inter / new Set([...k, ...o]).size };
+  }).filter((x) => x.sim >= min).sort((a, b) => b.sim - a.sim).slice(0, 3);
+}
+
+/* =====================================================================
+   Vistas
+   ===================================================================== */
+function setTab(tab, title) {
+  document.querySelectorAll(".tabbar a").forEach((a) => (a.dataset.tab === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+  $("#topTitle").textContent = title || "";
+  document.title = (title ? title + " · " : "") + "Nexus Knowledge";
+}
+
+function answerSnippet(q, query) {
+  const words = fold(query).split(/\s+/).filter((w) => w.length > 1);
+  if (!words.length || words.every((w) => fold(q.title + " " + q.body).includes(w))) return "";
+  const hit = q.answers.find((a) => words.some((w) => fold(a.body).includes(w)));
+  if (!hit) return "";
+  const plain = hit.body.replace(/[*`]/g, "");
+  const i = fold(plain).indexOf(words.find((w) => fold(plain).includes(w)));
+  let start = Math.max(0, i - 50);
+  if (start) start = plain.indexOf(" ", start) + 1 || start;           // empieza en una palabra completa
+  let end = Math.min(plain.length, start + 140);
+  if (end < plain.length) end = plain.lastIndexOf(" ", end) > i ? plain.lastIndexOf(" ", end) : end;
+  const frag = (start ? "…" : "") + plain.slice(start, end) + (end < plain.length ? "…" : "");
+  return `<p style="-webkit-line-clamp:3"><b style="color:var(--ink)">En una respuesta:</b> ${highlight(frag, query)}</p>`;
+}
+
+function questionItem(q, query = "", reason = "") {
+  const c = cat(q.category || q.cat);
+  const answers = q.answers.length;
+  return `<a class="sheet q-item" href="#/q/${q.id}" style="--cat:${c.color}">
+    <div class="row"><span class="cat-name">${c.name}</span><span class="spacer"></span>${reason ? `<span class="reason">${esc(reason)}</span>` : ""}</div>
+    <h3>${highlight(q.title, query)}</h3>
+    ${answerSnippet(q, query) || `<p>${highlight(q.body, query)}</p>`}
+    <div class="meta">
+      <span title="Puntuación">${icon("up")}${fmtInt(score(q))}</span>
+      ${q.accepted ? `<span class="solved">${icon("check")}Resuelta</span>` : `<span>${icon("chat")}${plural(answers, "respuesta", "respuestas")}</span>`}
+      <span>${icon("eye")}${fmtInt(q.views)}</span>
+      <span>${esc(user(q.author).name)}, ${ago(q.created)}</span>
+    </div>
+  </a>`;
+}
+
+function nearestEfemeride() {
+  const today = new Date(); const y = today.getFullYear();
+  const withDate = HISTORY.filter((h) => h.date);
+  let best = null;
+  for (const h of withDate) {
+    for (const yy of [y - 1, y, y + 1]) {
+      const d = new Date(yy, h.date[0] - 1, h.date[1]);
+      const diff = Math.round((d - new Date(y, today.getMonth(), today.getDate())) / DAY);
+      if (!best || Math.abs(diff) < Math.abs(best.diff) || (Math.abs(diff) === Math.abs(best.diff) && diff > 0)) best = { h, diff, d };
+    }
+  }
+  return best;
+}
+
+function viewHome() {
+  setTab("inicio", "");
+  const e = nearestEfemeride();
+  const when = e.diff === 0 ? "Tal día como hoy" : e.diff > 0 ? `Dentro de ${plural(e.diff, "día", "días")}` : `Hace ${plural(-e.diff, "día", "días")}`;
+  const dateLabel = e.d.toLocaleDateString("es-ES", { day: "numeric", month: "long" });
+  const years = new Date().getFullYear() - e.h.year;
+
+  let list = [...S.questions];
+  if (ui.feedCat) list = list.filter((q) => q.cat === ui.feedCat);
+  let reasons = {};
+  if (ui.feed === "recientes") list.sort((a, b) => b.created - a.created);
+  else if (ui.feed === "sin-resolver") list = list.filter((q) => !q.accepted).sort((a, b) => b.created - a.created);
+  else {
+    // "Para ti": 0,40·recencia + 0,30·interacción + 0,20·afinidad (Logística) + 0,10·novedad
+    const eng = (q) => Math.log1p(Math.max(score(q), 0) + 3 * q.answers.length);
+    const maxEng = Math.max(...list.map(eng), 1);
+    const rank = (q) => {
+      const ageH = (Date.now() - q.created) / HOUR;
+      const recency = Math.exp(-Math.LN2 * ageH / 24), engagement = eng(q) / maxEng, affinity = q.cat === "logistica" ? 1 : 0;
+      reasons[q.id] = affinity ? "Porque sigues Logística" : engagement > 0.6 ? "Popular en la comunidad" : ageH < 6 ? "Publicada recientemente" : "";
+      return 0.4 * recency + 0.3 * engagement + 0.2 * affinity + 0.1;
+    };
+    list.forEach(rank);
+    list.sort((a, b) => rank(b) - rank(a));
+  }
+  $("#view").innerHTML = `
+    <div class="stack">
+      <a class="sheet efe" href="#/historia?h=${e.h.id}" style="text-decoration:none">
+        <span class="when">${when}, ${dateLabel}</span>
+        <span class="year">${yearLabel(e.h.year)}</span>
+        <h3>${esc(e.h.title)}</h3>
+        <span class="muted small">Hace ${fmtInt(years)} años. Toca para verlo en la línea de tiempo.</span>
+      </a>
+      <div class="segmented" role="tablist" aria-label="Tipo de feed">
+        ${[["para-ti", "Para ti"], ["recientes", "Recientes"], ["sin-resolver", "Sin resolver"]].map(([k, l]) => `<button role="tab" aria-selected="${ui.feed === k}" data-feed="${k}">${l}</button>`).join("")}
+      </div>
+      <div class="chips" aria-label="Categorías">
+        <button class="chip" aria-pressed="${!ui.feedCat}" data-fcat="">Todas</button>
+        ${CATEGORIES.map((c) => `<button class="chip" aria-pressed="${ui.feedCat === c.slug}" data-fcat="${c.slug}"><span class="swatch" style="background:${c.color}"></span>${c.name}</button>`).join("")}
+      </div>
+      <div class="q-list">${list.map((q) => questionItem(q, "", ui.feed === "para-ti" ? reasons[q.id] : "")).join("") || `<div class="empty">No hay preguntas sin resolver en esta categoría.</div>`}</div>
+    </div>
+    <a class="fab" href="#/preguntar">${icon("pen")}Preguntar</a>`;
+  $("#view").querySelectorAll("[data-feed]").forEach((b) => b.addEventListener("click", () => { ui.feed = b.dataset.feed; viewHome(); }));
+  $("#view").querySelectorAll("[data-fcat]").forEach((b) => b.addEventListener("click", () => { ui.feedCat = b.dataset.fcat || null; viewHome(); }));
+}
+
+function viewQuestion(id) {
+  const q = S.questions.find((x) => x.id === id);
+  if (!q) return viewNotFound("Esta pregunta no existe o se ha eliminado.");
+  setTab("inicio", "Pregunta");
+  const c = cat(q.cat);
+  const mine = q.author === ME;
+  const answers = [...q.answers].sort((a, b) => (b.id === q.accepted) - (a.id === q.accepted) || score(b) - score(a) || a.created - b.created);
+  const number = (aid) => q.answers.findIndex((x) => x.id === aid) + 1;
+  const ai = q.answers.length > 5 ? (AI_SUMMARY[q.id] || null) : null;
+  const related = S.questions.filter((o) => o.id !== q.id).map((o) => ({ o, s: (o.cat === q.cat ? 1 : 0) + o.tags.filter((t) => q.tags.includes(t)).length * 2 })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 3);
+  const ev = HISTORY.find((h) => h.question === q.id);
+
+  const voteBox = (kind, item, label) => {
+    const own = item.author === ME;
+    return `<div class="vote">
+      <button aria-label="${item.myVote === 1 ? "Quitar voto positivo a" : "Votar positivo"} ${label}" aria-pressed="${item.myVote === 1}" data-vote="${kind}" data-id="${item.id}" data-value="1" ${own ? `disabled title="No puedes votar tu propio contenido"` : ""}>${icon("up")}</button>
+      <span class="score" aria-label="Puntuación">${fmtInt(score(item))}</span>
+      <button aria-label="${item.myVote === -1 ? "Quitar voto negativo a" : "Votar negativo"} ${label}" aria-pressed="${item.myVote === -1}" data-vote="${kind}" data-id="${item.id}" data-value="-1" ${own ? "disabled" : ""}>${icon("down")}</button>
+      ${kind === "a" && mine ? `<div class="accept"><button aria-pressed="${q.accepted === item.id}" aria-label="${q.accepted === item.id ? "Quitar como solución" : "Marcar como solución"}" data-accept="${item.id}" style="border-radius:50%">${icon("check")}</button></div>`
+        : kind === "a" && q.accepted === item.id ? `<div class="accept-static" title="Solución aceptada">${icon("check")}</div>` : ""}
+    </div>`;
+  };
+
+  $("#view").innerHTML = `
+    <a class="back" href="#/">${icon("back")}Volver</a>
+    <article class="stack">
+      <div class="detail-head">
+        <div class="row"><span class="cat-name" style="--cat:${c.color}">${c.name}</span>${q.accepted ? `<span class="solved small">${icon("check")}Resuelta</span>` : ""}</div>
+        <h1>${esc(q.title)}</h1>
+        <div class="meta"><span>${icon("eye")}${plural(q.views, "visita", "visitas")}</span><span>Preguntada ${ago(q.created)}</span></div>
+      </div>
+      <div class="sheet post">
+        ${voteBox("q", q, "la pregunta")}
+        <div class="stack" style="gap:12px">
+          <div class="md">${md(q.body)}</div>
+          <div class="tags">${q.tags.map((t) => `<a class="tag" href="#/explorar?q=${encodeURIComponent(t)}" style="text-decoration:none">#${esc(t)}</a>`).join("")}</div>
+          <div class="row">${authorLine(q.author, q.created, "preguntó")}<span class="spacer"></span>${!mine ? `<button class="btn ghost small" data-report>${icon("flag")}Reportar</button>` : ""}</div>
+          ${ev ? `<a class="tag" href="#/historia?h=${ev.id}" style="text-decoration:none;justify-self:start">En la línea de tiempo: ${esc(ev.title)} (${yearLabel(ev.year)})</a>` : ""}
+        </div>
+      </div>
+
+      ${mine && q.answers.length && !q.accepted ? `<div class="callout small">Si alguna respuesta te resolvió la duda, márcala con ${icon("check").replace("<svg", '<svg style="width:16px;height:16px;vertical-align:-3px"')} Quien respondió gana 10 puntos de reputación.</div>` : ""}
+
+      ${ai ? `<details class="sheet ai" open><summary>${icon("spark")}Resumen de ${q.answers.length} respuestas</summary>
+        <p style="margin:10px 0 0">${esc(ai.text)}</p>
+        <ul>${ai.points.map(([p, refs]) => `<li>${esc(p)} <span class="ref">(resp. ${refs.map(number).join(", ")})</span></li>`).join("")}</ul>
+        <p class="small muted" style="margin:0 0 6px">Discrepancia: ${esc(ai.disagreement)}</p>
+        <p class="small muted" style="margin:0">Generado con IA a partir de las respuestas. Puede contener errores.</p></details>` : ""}
+
+      <h2>${q.answers.length ? plural(q.answers.length, "respuesta", "respuestas") : "Todavía no hay respuestas"}</h2>
+      ${answers.map((a) => `
+        <div class="sheet post ${q.accepted === a.id ? "accepted" : ""}" id="answer-${a.id}">
+          ${voteBox("a", a, "la respuesta")}
+          <div class="stack" style="gap:10px">
+            ${q.accepted === a.id ? `<span class="solution-flag">${icon("check")}Solución</span>` : ""}
+            <div class="md">${md(a.body)}</div>
+            <div class="row">${authorLine(a.author, a.created, "respondió")}<span class="spacer"></span><span class="small muted">Respuesta ${number(a.id)}</span></div>
+          </div>
+        </div>`).join("")}
+
+      <form class="sheet stack" style="padding:16px" id="answerForm" novalidate>
+        <label class="field">Tu respuesta
+          <textarea class="input" id="answerBody" placeholder="Explica tu respuesta con detalle. Puedes usar **negrita**, *cursiva* y \`código\`." aria-describedby="answerHint answerErr"></textarea>
+          <span class="hint" id="answerHint">Mínimo 20 caracteres.</span>
+          <span class="error-text" id="answerErr" role="alert"></span>
+        </label>
+        <div><button class="btn" type="submit">Publicar respuesta</button></div>
+      </form>
+
+      ${related.length ? `<section class="sheet related" style="padding:8px 16px" aria-labelledby="relTitle"><h3 id="relTitle" style="padding:8px 0">Preguntas relacionadas</h3>${related.map(({ o }) => `<a href="#/q/${o.id}">${o.accepted ? `<span class="solved">${icon("check")}</span> ` : ""}${esc(o.title)}</a>`).join("")}</section>` : ""}
+    </article>`;
+
+  const root = $("#view");
+  root.querySelectorAll("[data-vote]").forEach((b) => b.addEventListener("click", () => {
+    const r = vote(b.dataset.vote, q.id, b.dataset.vote === "a" ? b.dataset.id : null, Number(b.dataset.value));
+    if (r && r.next && navigator.vibrate) navigator.vibrate(8);
+    viewQuestion(q.id);
+    const again = root.querySelector(`[data-vote="${b.dataset.vote}"][data-id="${b.dataset.id}"][data-value="${b.dataset.value}"]`); again && again.focus();
+  }));
+  root.querySelectorAll("[data-accept]").forEach((b) => b.addEventListener("click", () => {
+    const { target } = setAccepted(q.id, b.dataset.accept);
+    const ans = target && q.answers.find((x) => x.id === target);
+    if (ans) toast(ans.author === ME ? "Marcada como solución (tu propia respuesta no suma reputación)" : `Marcada como solución: <span class="plus">+10</span> para ${esc(user(ans.author).name)}`);
+    else toast("Has quitado la solución");
+    viewQuestion(q.id);
+  }));
+  const report = root.querySelector("[data-report]");
+  report && report.addEventListener("click", () => openSheet(`
+    <h2>Reportar pregunta</h2>
+    <p class="muted">El equipo de moderación lo revisará. Con 3 reportes, el contenido se marca automáticamente para revisión.</p>
+    <div class="stack" style="gap:8px">${["Spam", "Ofensivo", "Acoso", "Desinformación", "Fuera de tema", "Duplicado"].map((r) => `<button class="btn secondary" data-reason="${r}">${r}</button>`).join("")}</div>`));
+  $("#sheetBody").onclick = (ev) => { const b = ev.target.closest("[data-reason]"); if (b) { closeSheet(); toast("Gracias. Lo revisará el equipo de moderación."); } };
+
+  $("#answerForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const body = $("#answerBody").value.trim();
+    const err = $("#answerErr");
+    if (body.length < 20) { err.textContent = `Te faltan ${20 - body.length} caracteres.`; $("#answerBody").focus(); return; }
+    const spam = spamCheck("", body);
+    if (spam.length) { err.textContent = "Parece spam y no se ha publicado. " + spam.join(" "); return; }
+    const aid = nextId("a");
+    q.answers.push({ id: aid, author: ME, created: Date.now(), score: 0, myVote: 0, body });
+    save();
+    toast("Respuesta publicada");
+    simulateCommunity(q.id, aid);
+    viewQuestion(q.id);
+    const el = document.getElementById(`answer-${aid}`); el && el.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+function viewAsk() {
+  setTab("inicio", "Nueva pregunta");
+  $("#view").innerHTML = `
+    <a class="back" href="#/">${icon("back")}Volver</a>
+    <form class="stack" id="askForm" novalidate>
+      <h1>Haz una pregunta</h1>
+      <label class="field">Título
+        <input class="input" id="askTitle" maxlength="200" placeholder="Pregunta concreta, por ejemplo: ¿Cómo se calcula la rotación de stock?" autocomplete="off">
+        <span class="hint">Entre 10 y 200 caracteres.</span>
+      </label>
+      <div id="dupBox"></div>
+      <label class="field">Explicación
+        <textarea class="input" id="askBody" placeholder="Qué sabes ya, qué has probado y qué necesitas."></textarea>
+        <span class="hint">Mínimo 20 caracteres.</span>
+      </label>
+      <label class="field">Categoría
+        <select class="input" id="askCat">${CATEGORIES.map((c) => `<option value="${c.slug}">${c.name}</option>`).join("")}</select>
+      </label>
+      <label class="field">Etiquetas
+        <input class="input" id="askTags" placeholder="Separadas por comas, hasta 5" autocomplete="off">
+      </label>
+      <div class="error-text" id="askErr" role="alert"></div>
+      <div class="row"><button class="btn" type="submit">Publicar pregunta</button><span class="hint">+5 de reputación al publicar.</span></div>
+    </form>`;
+  let timer;
+  $("#askTitle").addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const input = $("#askTitle"); if (!input) return;
+      const sims = similarQuestions(input.value);
+      $("#dupBox").innerHTML = sims.length ? `<div class="callout"><b>¿Alguna de estas responde tu duda?</b>
+        <div class="related" style="margin-top:6px">${sims.map(({ q, sim }) => `<a href="#/q/${q.id}">${esc(q.title)} <span class="small muted">(${Math.round(sim * 100)} % parecida${q.accepted ? ", resuelta" : ""})</span></a>`).join("")}</div></div>` : "";
+    }, 300);
+  });
+  $("#askForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const title = $("#askTitle").value.trim(), body = $("#askBody").value.trim();
+    const err = $("#askErr");
+    if (title.length < 10) { err.textContent = "El título necesita al menos 10 caracteres."; $("#askTitle").focus(); return; }
+    if (body.length < 20) { err.textContent = "La explicación necesita al menos 20 caracteres."; $("#askBody").focus(); return; }
+    const spam = spamCheck(title, body);
+    if (spam.length) { err.textContent = "Parece spam y no se ha publicado. " + spam.join(" "); return; }
+    const tags = [...new Set($("#askTags").value.split(",").map((t) => fold(t.trim()).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30)).filter((t) => t.length >= 2))].slice(0, 5);
+    const id = nextId("q");
+    S.questions.unshift({ id, author: ME, cat: $("#askCat").value, created: Date.now(), score: 0, views: 0, tags, title, body, myVote: 0, accepted: null, answers: [] });
+    addRep(ME, RULES.question, "Publicaste una pregunta");
+    save();
+    toast(`Pregunta publicada: <span class="plus">+5</span>`);
+    location.hash = `#/q/${id}`;
+  });
+}
+
+function viewExplore(params) {
+  setTab("explorar", "Explorar");
+  if (params.get("q") !== null) ui.q = params.get("q");
+  $("#view").innerHTML = `
+    <div class="stack">
+      <h1>Explorar</h1>
+      <div class="search">${icon("search")}<input class="input" type="search" id="q" value="${esc(ui.q)}" placeholder="Busca en preguntas y respuestas" aria-label="Buscar" autocomplete="off"></div>
+      <div class="chips" aria-label="Categorías">
+        <button class="chip" aria-pressed="${!ui.qCat}" data-qcat="">Todas</button>
+        ${CATEGORIES.map((c) => `<button class="chip" aria-pressed="${ui.qCat === c.slug}" data-qcat="${c.slug}"><span class="swatch" style="background:${c.color}"></span>${c.name}</button>`).join("")}
+      </div>
+      <p class="small muted" id="qInfo" aria-live="polite"></p>
+      <div class="q-list" id="results"></div>
+    </div>`;
+  const run = () => {
+    const query = $("#q").value.trim();
+    ui.q = query;
+    const words = fold(query).split(/\s+/).filter(Boolean);
+    const results = S.questions.filter((q) => (!ui.qCat || q.cat === ui.qCat) && words.every((w) => fold([q.title, q.body, q.tags.join(" "), ...q.answers.map((a) => a.body)].join(" ")).includes(w)));
+    results.sort((a, b) => (fold(b.title).includes(words[0] || "") - fold(a.title).includes(words[0] || "")) || score(b) - score(a));
+    $("#qInfo").textContent = query ? `${plural(results.length, "resultado", "resultados")} para «${query}»` : `${plural(results.length, "pregunta", "preguntas")}`;
+    $("#results").innerHTML = results.map((q) => questionItem(q, query)).join("") || `<div class="empty">Nada coincide con «${esc(query)}». Prueba con otras palabras o <a href="#/preguntar">hazla como pregunta</a>.</div>`;
+  };
+  $("#q").addEventListener("input", run);
+  $("#view").querySelectorAll("[data-qcat]").forEach((b) => b.addEventListener("click", () => {
+    ui.qCat = b.dataset.qcat || null;
+    $("#view").querySelectorAll("[data-qcat]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    run();
+  }));
+  run();
+}
+
+function viewHistory(params) {
+  setTab("historia", "Historia");
+  const themes = [...new Set(HISTORY.flatMap((h) => h.themes))].sort();
+  const events = HISTORY.filter((h) => (!ui.hRegion || h.region === ui.hRegion) && (!ui.hTheme || h.themes.includes(ui.hTheme)));
+  // Escala comprimida: conserva el orden y refleja los huecos sin que la Antigüedad ocupe metros de pantalla.
+  const pos = []; let x = 40;
+  events.forEach((h, i) => { if (i) x += 120 + Math.min(240, Math.sqrt(Math.max(0, h.year - events[i - 1].year)) * 10); pos.push(x); });
+  const width = (pos[pos.length - 1] || 0) + 260;
+  const eras = [["Antigüedad", -1000], ["Edad Media", 476], ["Edad Moderna", 1492], ["Edad Contemporánea", 1789]];
+
+  $("#view").innerHTML = `
+    <div class="stack">
+      <div><h1>Historia</h1><p class="muted" style="margin:6px 0 0">Desliza y toca un hito para ver su fuente y los debates.</p></div>
+      <div class="chips" aria-label="Región">
+        <button class="chip" aria-pressed="${!ui.hRegion}" data-region="">Todas las regiones</button>
+        ${Object.entries(REGIONS).map(([k, [l, col]]) => `<button class="chip" aria-pressed="${ui.hRegion === k}" data-region="${k}"><span class="swatch" style="background:${col}"></span>${l}</button>`).join("")}
+      </div>
+      <div class="chips" aria-label="Tema">
+        <button class="chip" aria-pressed="${!ui.hTheme}" data-theme-f="">Todos los temas</button>
+        ${themes.map((t) => `<button class="chip" aria-pressed="${ui.hTheme === t}" data-theme-f="${t}">${themeName(t)}</button>`).join("")}
+      </div>
+      <div class="era-bar">${eras.map(([l, y]) => `<button class="btn secondary small" data-era="${y}">${l}</button>`).join("")}</div>
+      ${events.length ? `<div class="timeline" id="tl" tabindex="0" aria-label="Línea de tiempo. Usa las flechas para desplazarte.">
+        <div class="track" style="width:${width}px">
+          <div class="axis"></div>
+          ${events.map((h, i) => {
+            const up = i % 2 === 0; const color = REGIONS[h.region][1];
+            const debates = S.questions.filter((q) => q.id === h.question).length;
+            return `<div class="ev" style="left:${pos[i]}px;--ev:${color}" data-year="${h.year}">
+              <div class="stem" style="${up ? "top:100px;height:75px" : "top:177px;height:58px"}"></div>
+              <div class="pin"></div>
+              <button style="${up ? "top:6px" : "top:235px"}" data-ev="${h.id}" aria-label="${rangeLabel(h.year, h.end)}: ${esc(h.title)}">
+                <span class="ev-year">${rangeLabel(h.year, h.end)}</span>
+                <span class="ev-title">${esc(h.title)}</span>
+                ${debates ? `<span class="ev-debates">${plural(debates, "debate", "debates")}</span>` : ""}
+              </button>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>
+      <div class="legend">${Object.values(REGIONS).map(([l, col]) => `<span><i style="background:${col}"></i>${l}</span>`).join("")}</div>`
+      : `<div class="empty">No hay hitos con estos filtros.</div>`}
+    </div>`;
+  const tl = $("#tl");
+  const scrollToYear = (year, smooth = true) => {
+    if (!tl) return;
+    const target = [...tl.querySelectorAll(".ev")].find((el) => Number(el.dataset.year) >= year) || tl.querySelector(".ev:last-child");
+    if (target) tl.scrollTo({ left: target.offsetLeft - tl.clientWidth / 2 + 95, behavior: smooth && !matchMedia("(prefers-reduced-motion: reduce)").matches ? "smooth" : "auto" });
+  };
+  $("#view").querySelectorAll("[data-region]").forEach((b) => b.addEventListener("click", () => { ui.hRegion = b.dataset.region || null; viewHistory(new URLSearchParams()); }));
+  $("#view").querySelectorAll("[data-theme-f]").forEach((b) => b.addEventListener("click", () => { ui.hTheme = b.dataset.themeF || null; viewHistory(new URLSearchParams()); }));
+  $("#view").querySelectorAll("[data-era]").forEach((b) => b.addEventListener("click", () => scrollToYear(Number(b.dataset.era))));
+  $("#view").querySelectorAll("[data-ev]").forEach((b) => b.addEventListener("click", () => showEvent(b.dataset.ev)));
+  tl && tl.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") tl.scrollBy({ left: 220 }); if (e.key === "ArrowLeft") tl.scrollBy({ left: -220 }); });
+  const focus = params.get("h");
+  if (focus && tl) { const h = HISTORY.find((x) => x.id === focus); if (h) { requestAnimationFrame(() => scrollToYear(h.year, false)); showEvent(h.id); } }
+  else requestAnimationFrame(() => scrollToYear(1800, false));
+}
+
+function showEvent(id) {
+  const h = HISTORY.find((x) => x.id === id);
+  const [region, color] = REGIONS[h.region];
+  const q = h.question && S.questions.find((x) => x.id === h.question);
+  openSheet(`
+    <p style="margin:0;color:${color};font-weight:700">${rangeLabel(h.year, h.end)}, ${region}</p>
+    <h2 style="margin:4px 0 10px">${esc(h.title)}</h2>
+    <div class="tags" style="margin-bottom:12px">${h.themes.map((t) => `<span class="tag">${themeName(t)}</span>`).join("")}</div>
+    <p style="margin:0 0 14px">${esc(h.desc)}</p>
+    <p style="margin:0 0 18px"><a href="${h.url}" target="_blank" rel="noopener noreferrer">Fuente: Wikipedia</a></p>
+    <h3 style="margin-bottom:8px">Debates</h3>
+    ${q ? `<div class="related"><a href="#/q/${q.id}" data-close>${esc(q.title)} <span class="small muted">(${plural(q.answers.length, "respuesta", "respuestas")})</span></a></div>` : `<p class="muted" style="margin:0">Todavía no hay debates sobre este hito.</p>`}
+    <div style="margin-top:20px"><button class="btn secondary" data-close-btn>Cerrar</button></div>`);
+  $("#sheetBody").querySelectorAll("[data-close], [data-close-btn]").forEach((el) => el.addEventListener("click", closeSheet));
+}
+
+function viewProjects() {
+  setTab("proyectos", "Proyectos");
+  const list = S.projects.filter((p) => !ui.pStatus || p.status === ui.pStatus);
+  const statusName = { recruiting: "Busca colaboradores", active: "En marcha", completed: "Terminado" };
+  $("#view").innerHTML = `
+    <div class="stack">
+      <div><h1>Proyectos</h1><p class="muted" style="margin:6px 0 0">Iniciativas de la comunidad. Únete a las que buscan colaboradores.</p></div>
+      <div class="chips">
+        <button class="chip" aria-pressed="${!ui.pStatus}" data-status="">Todos</button>
+        ${Object.entries(statusName).map(([k, l]) => `<button class="chip" aria-pressed="${ui.pStatus === k}" data-status="${k}">${l}</button>`).join("")}
+      </div>
+      <div class="q-list">${list.map((p) => `
+        <a class="sheet project" href="#/p/${p.id}" style="--cat:${cat(p.cat).color}">
+          <div class="row"><span class="status ${p.status}">${statusName[p.status]}</span><span class="cat-name">${cat(p.cat).name}</span></div>
+          <h3>${esc(p.title)}</h3>
+          <p class="muted" style="margin:0;font-size:14.5px">${esc(p.desc)}</p>
+          <div class="tags">${p.tech.map((t) => `<span class="tag">${t}</span>`).join("")}</div>
+          <div class="meta"><span>${plural(p.members.length + (S.requests[p.id] === "approved" ? 1 : 0), "miembro", "miembros")}</span>${p.status === "recruiting" ? `<span>${plural(p.slots, "plaza libre", "plazas libres")}</span>` : ""}</div>
+        </a>`).join("")}</div>
+    </div>`;
+  $("#view").querySelectorAll("[data-status]").forEach((b) => b.addEventListener("click", () => { ui.pStatus = b.dataset.status || null; viewProjects(); }));
+}
+
+function viewProject(id) {
+  const p = S.projects.find((x) => x.id === id);
+  if (!p) return viewNotFound("Este proyecto no existe.");
+  setTab("proyectos", "Proyecto");
+  const req = S.requests[p.id];
+  const statusName = { recruiting: "Busca colaboradores", active: "En marcha", completed: "Terminado" };
+  const updates = [...p.updates, ...(req === "approved" ? [{ t: S.requestsAt?.[p.id] || Date.now(), who: ME, text: "Se unió al proyecto." }] : [])].sort((a, b) => b.t - a.t);
+  const joinUi = p.status !== "recruiting" ? `<p class="muted">Este proyecto no admite solicitudes ahora mismo.</p>`
+    : req === "pending" ? `<div class="callout">Solicitud enviada. ${esc(user(p.owner).name)} la revisará.</div><div><button class="btn secondary" data-cancel>Cancelar solicitud</button></div>`
+    : req === "approved" ? `<div class="callout">Formas parte del proyecto.</div>`
+    : `<form class="stack" id="joinForm" style="gap:10px"><label class="field">Mensaje para ${esc(user(p.owner).name)}<textarea class="input" id="joinMsg" style="min-height:96px" placeholder="Qué puedes aportar y cuánto tiempo tienes."></textarea></label><div><button class="btn" type="submit">Solicitar unirme</button></div></form>`;
+  $("#view").innerHTML = `
+    <a class="back" href="#/proyectos">${icon("back")}Proyectos</a>
+    <article class="stack">
+      <div class="row"><span class="status ${p.status}">${statusName[p.status]}</span><span class="cat-name" style="--cat:${cat(p.cat).color}">${cat(p.cat).name}</span></div>
+      <h1>${esc(p.title)}</h1>
+      <p style="margin:0">${esc(p.desc)}</p>
+      <div class="tags">${p.tech.map((t) => `<span class="tag">${t}</span>`).join("")}</div>
+      <section class="sheet stack" style="padding:16px;gap:12px"><h3>Equipo</h3>
+        ${[...p.members, ...(req === "approved" ? [ME] : [])].map((m) => `<div>${authorLine(m, p.created, m === p.owner ? "creó el proyecto" : "se unió")}</div>`).join("")}
+        ${p.status === "recruiting" ? `<p class="muted small" style="margin:0">${plural(p.slots, "plaza libre", "plazas libres")}</p>` : ""}
+      </section>
+      <section class="sheet stack" style="padding:16px;gap:12px"><h3>Unirme</h3>${joinUi}</section>
+      <section class="stack" style="gap:12px"><h3>Actividad</h3>
+        <ol class="timeline-list">${updates.map((u) => `<li><b>${esc(user(u.who).name)}</b> <span class="muted small">${ago(u.t)}</span><br>${esc(u.text)}</li>`).join("")}</ol>
+      </section>
+    </article>`;
+  const form = $("#joinForm");
+  form && form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if ($("#joinMsg").value.trim().length < 10) { toast("Cuenta en al menos 10 caracteres qué puedes aportar"); return; }
+    S.requests[p.id] = "pending"; save(); toast("Solicitud enviada"); viewProject(p.id);
+    setTimeout(() => {
+      if (S.requests[p.id] !== "pending") return;
+      S.requests[p.id] = "approved"; S.requestsAt = { ...(S.requestsAt || {}), [p.id]: Date.now() };
+      p.slots = Math.max(0, p.slots - 1);
+      notify("Solicitud aprobada", `${user(p.owner).name} te ha aceptado en «${p.title}»`, `#/p/${p.id}`);
+      toast(`${esc(user(p.owner).name)} aprobó tu solicitud`);
+      save(); rerender();
+    }, 6000);
+  });
+  const cancel = $("[data-cancel]");
+  cancel && cancel.addEventListener("click", () => { delete S.requests[p.id]; save(); toast("Solicitud cancelada"); viewProject(p.id); });
+}
+
+function viewProfile(username = ME) {
+  const usr = user(username);
+  if (!usr) return viewNotFound("Este usuario no existe.");
+  const own = username === ME;
+  setTab(own ? "perfil" : "inicio", own ? "Perfil" : usr.name);
+  const tier = tierOf(usr.rep);
+  const next = BADGES.find((b) => usr.rep <= b.min);
+  const prevMin = tier ? tier.min : 0;
+  const pct = next ? Math.min(100, ((usr.rep - prevMin) / (next.min - prevMin)) * 100) : 100;
+  const questions = S.questions.filter((q) => q.author === username);
+  const answers = S.questions.flatMap((q) => q.answers.filter((a) => a.author === username).map((a) => ({ a, q })));
+  const accepted = answers.filter(({ a, q }) => q.accepted === a.id).length;
+  const theme = document.documentElement.dataset.theme || "auto";
+
+  $("#view").innerHTML = `
+    ${own ? "" : `<a class="back" href="javascript:history.back()">${icon("back")}Volver</a>`}
+    <div class="stack">
+      <section class="sheet profile-head">
+        ${avatar(username)}
+        <div><h1 style="font-size:26px">${esc(usr.name)}</h1><p class="muted" style="margin:2px 0 0">@${username}. Desde ${usr.joined}.</p></div>
+        <p style="grid-column:1/-1;margin:0">${esc(usr.bio)}</p>
+      </section>
+      <section class="sheet stack" style="padding:18px;gap:10px" aria-labelledby="repTitle">
+        <h2 id="repTitle" class="sr">Reputación</h2>
+        <div class="row" style="align-items:baseline"><span class="rep-big">${fmtInt(usr.rep)}</span><span class="muted">puntos de reputación</span></div>
+        ${next ? `<div class="progress" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso hasta ${next.name}"><div style="width:${pct}%"></div></div>
+        <p class="small muted" style="margin:0">Te faltan ${fmtInt(next.min - usr.rep + 1)} para la insignia ${next.name}.</p>` : `<p class="muted">Has alcanzado la insignia más alta.</p>`}
+        <div class="meta"><span>${plural(questions.length, "pregunta", "preguntas")}</span><span>${plural(answers.length, "respuesta", "respuestas")}</span><span>${plural(accepted, "aceptada", "aceptadas")}</span></div>
+      </section>
+      <section class="stack" style="gap:10px"><h2>Insignias</h2>
+        <div class="badges">${BADGES.map((b) => `<div class="badge ${usr.rep > b.min ? "on" : ""}"><b>${b.name}</b><span class="small muted">${b.text}</span></div>`).join("")}</div>
+      </section>
+      ${own ? `<section class="sheet" style="padding:6px 18px 12px" aria-labelledby="ledgerTitle"><h2 id="ledgerTitle" style="padding:12px 0 4px">Movimientos de reputación</h2>
+        <p class="small muted" style="margin:0 0 6px">Respuesta aceptada +10, voto a favor +2, voto en contra −1, pregunta publicada +5.</p>
+        <ul class="ledger">${S.ledger.slice(0, 12).map((l) => `<li><span class="delta ${l.delta > 0 ? "pos" : "neg"}">${l.delta > 0 ? "+" : "−"}${Math.abs(l.delta)}</span><span style="flex:1">${esc(l.text)}</span><span class="small muted">${ago(l.t)}</span></li>`).join("")}</ul></section>` : ""}
+      <section class="stack" style="gap:12px"><h2>${own ? "Tus preguntas" : "Preguntas"}</h2>
+        <div class="q-list">${questions.map((q) => questionItem(q)).join("") || `<div class="empty">${own ? `Aún no has preguntado nada. <a href="#/preguntar">Haz tu primera pregunta</a>.` : "Sin preguntas todavía."}</div>`}</div>
+      </section>
+      ${own ? `<section class="sheet stack" style="padding:18px;gap:12px"><h2>Ajustes</h2>
+        <div class="segmented" role="tablist" aria-label="Tema">${[["auto", "Sistema"], ["light", "Claro"], ["dark", "Oscuro"]].map(([k, l]) => `<button role="tab" aria-selected="${theme === k}" data-th="${k}">${l}</button>`).join("")}</div>
+        <p class="small muted" style="margin:0">Es una demo: los datos se guardan solo en este navegador.</p>
+        <div><button class="btn secondary" data-reset>Restablecer datos de la demo</button></div></section>` : ""}
+    </div>`;
+  $("#view").querySelectorAll("[data-th]").forEach((b) => b.addEventListener("click", () => {
+    const v = b.dataset.th;
+    if (v === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v;
+    try { localStorage.setItem("nexus-theme", v); } catch { /* sin almacenamiento */ }
+    viewProfile(username);
+  }));
+  const reset = $("[data-reset]");
+  reset && reset.addEventListener("click", () => {
+    if (!confirm("¿Restablecer la demo? Se borrarán tus preguntas, votos y respuestas de prueba.")) return;
+    S = seed(); save(); renderBell(); toast("Demo restablecida"); viewProfile();
+  });
+}
+
+function viewNotFound(text) {
+  setTab("", "");
+  $("#view").innerHTML = `<div class="empty"><h2>No encontrado</h2><p>${esc(text)}</p><a class="btn" href="#/">Ir al inicio</a></div>`;
+}
+
+/* --- Notificaciones ----------------------------------------------------------- */
+function renderBell() {
+  const unread = S.notifications.filter((n) => !n.read).length;
+  const badge = $("#bellBadge");
+  badge.hidden = !unread; badge.textContent = unread;
+  $("#bellBtn").setAttribute("aria-label", unread ? `Notificaciones, ${unread} sin leer` : "Notificaciones");
+}
+$("#bellBtn").addEventListener("click", () => {
+  openSheet(`<h2>Notificaciones</h2>
+    ${S.notifications.length ? S.notifications.map((n) => `<a class="notif ${n.read ? "" : "unread"}" href="${n.href}" data-close style="text-decoration:none"><b>${esc(n.title)}</b><span>${esc(n.text)}</span><span class="small muted">${ago(n.t)}</span></a>`).join("") : `<p class="muted">No tienes notificaciones.</p>`}
+    <div style="margin-top:16px"><button class="btn secondary" data-close-btn>Cerrar</button></div>`);
+  S.notifications.forEach((n) => (n.read = true)); save(); renderBell();
+  $("#sheetBody").querySelectorAll("[data-close], [data-close-btn]").forEach((el) => el.addEventListener("click", closeSheet));
+});
+
+/* =====================================================================
+   Router
+   ===================================================================== */
+function rerender() { route(true); }
+function route(keepScroll = false) {
+  const [path, query = ""] = (location.hash.slice(1) || "/").split("?");
+  const params = new URLSearchParams(query);
+  const parts = path.split("/").filter(Boolean);
+  const y = window.scrollY;
+  if (!keepScroll) closeSheet();
+  if (!parts.length) viewHome();
+  else if (parts[0] === "q" && parts[1]) {
+    const q = S.questions.find((x) => x.id === parts[1]);
+    if (q && !keepScroll) { q.views += 1; save(); }
+    viewQuestion(parts[1]);
+  }
+  else if (parts[0] === "preguntar") viewAsk();
+  else if (parts[0] === "explorar") viewExplore(params);
+  else if (parts[0] === "historia") viewHistory(params);
+  else if (parts[0] === "proyectos") viewProjects();
+  else if (parts[0] === "p" && parts[1]) viewProject(parts[1]);
+  else if (parts[0] === "perfil") viewProfile();
+  else if (parts[0] === "u" && parts[1]) viewProfile(parts[1]);
+  else viewNotFound("Esta página no existe.");
+  if (keepScroll) window.scrollTo(0, y);
+  else { window.scrollTo(0, 0); $("#view").focus({ preventScroll: true }); }
+}
+window.addEventListener("hashchange", () => route());
+
+try { const th = localStorage.getItem("nexus-theme"); if (th && th !== "auto") document.documentElement.dataset.theme = th; } catch { /* sin almacenamiento */ }
+renderBell();
+route();
+</script>
+</body>
+</html>
